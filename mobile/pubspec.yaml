@@ -1,0 +1,45 @@
+name: app
+description: "Salawat counter app - Pray for the Prophet Muhammad ﷺ"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.6.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Phase 1 / 2
+  flutter_riverpod: ^2.6.1
+  shared_preferences: ^2.3.3
+  google_fonts: ^6.2.1
+  intl: ^0.19.0
+
+  # Phase 3
+  firebase_core: ^3.8.0
+  firebase_auth: ^5.3.4
+  cloud_firestore: ^5.5.1
+  cloud_functions: ^5.1.4
+  uuid: ^4.5.1
+
+  # Phase 6 polish
+  audioplayers: ^6.1.0
+  vibration: ^2.0.0
+  share_plus: ^10.1.2
+
+  # Will be wired in later phases:
+  # firebase_messaging, lucide_icons
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/audio/
