@@ -39,4 +39,8 @@ class AppColors {
   static const yellow300 = Color(0xFFFDE047);
   static const yellow400 = Color(0xFFFACC15);
   static const yellow500 = Color(0xFFEAB308);
+
+  // Status (Tailwind red) — used for offline indicator on the global counter.
+  static const red400 = Color(0xFFF87171);
+  static const red500 = Color(0xFFEF4444);
 }

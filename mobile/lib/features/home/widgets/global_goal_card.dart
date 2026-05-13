@@ -8,10 +8,15 @@ class GlobalGoalCard extends StatelessWidget {
     super.key,
     required this.current,
     required this.goal,
+    this.isOffline = false,
   });
 
   final int current;
   final int goal;
+
+  /// When true, the live indicator turns red to signal that the global count
+  /// is being served from cache (no connection to the backend).
+  final bool isOffline;
 
   @override
   Widget build(BuildContext context) {
@@ -122,7 +127,7 @@ class GlobalGoalCard extends StatelessWidget {
                   ),
                   Row(
                     children: [
-                      const _PingDot(),
+                      _PingDot(isOffline: isOffline),
                       const SizedBox(width: 6),
                       Text(
                         '${formatArabic(current)} صلاة',
@@ -147,7 +152,9 @@ class GlobalGoalCard extends StatelessWidget {
 }
 
 class _PingDot extends StatefulWidget {
-  const _PingDot();
+  const _PingDot({this.isOffline = false});
+
+  final bool isOffline;
 
   @override
   State<_PingDot> createState() => _PingDotState();
@@ -167,6 +174,10 @@ class _PingDotState extends State<_PingDot> with SingleTickerProviderStateMixin 
 
   @override
   Widget build(BuildContext context) {
+    final haloColor =
+        widget.isOffline ? AppColors.red400 : AppColors.emerald400;
+    final coreColor =
+        widget.isOffline ? AppColors.red500 : AppColors.emerald500;
     return SizedBox(
       width: 12,
       height: 12,
@@ -184,8 +195,8 @@ class _PingDotState extends State<_PingDot> with SingleTickerProviderStateMixin 
                   child: Container(
                     width: 12,
                     height: 12,
-                    decoration: const BoxDecoration(
-                      color: AppColors.emerald400,
+                    decoration: BoxDecoration(
+                      color: haloColor,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -196,8 +207,8 @@ class _PingDotState extends State<_PingDot> with SingleTickerProviderStateMixin 
           Container(
             width: 8,
             height: 8,
-            decoration: const BoxDecoration(
-              color: AppColors.emerald500,
+            decoration: BoxDecoration(
+              color: coreColor,
               shape: BoxShape.circle,
             ),
           ),

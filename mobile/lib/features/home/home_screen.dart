@@ -22,8 +22,11 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final count = ref.watch(counterControllerProvider);
     // Live community total (sum of 10 sharded docs). Shows 0 until Firestore
-    // delivers its first snapshot.
-    final globalCount = ref.watch(globalCountStreamProvider).valueOrNull ?? 0;
+    // delivers its first snapshot. `isOffline` is true when the latest
+    // snapshot was served from cache — i.e. we've lost the backend.
+    final globalSnapshot = ref.watch(globalCountStreamProvider).valueOrNull;
+    final globalCount = globalSnapshot?.count ?? 0;
+    final isOffline = globalSnapshot?.isOffline ?? false;
 
     return SafeArea(
       top: false,
@@ -31,7 +34,11 @@ class HomeScreen extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Column(
           children: [
-            GlobalGoalCard(current: globalCount, goal: _dailyGlobalGoal),
+            GlobalGoalCard(
+              current: globalCount,
+              goal: _dailyGlobalGoal,
+              isOffline: isOffline,
+            ),
             const SizedBox(height: 24),
             TapButton(
               count: count,
