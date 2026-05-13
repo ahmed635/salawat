@@ -51,7 +51,7 @@ class LeaderboardRepository {
       final name = (data['name'] as String?) ?? '';
 
       if (count == 0) {
-        yield MyRank(rank: null, count: 0, name: name);
+        yield MyRank(uid: uid, rank: null, count: 0, name: name);
         continue;
       }
 
@@ -64,7 +64,7 @@ class LeaderboardRepository {
           (count - lastFetchedCount).abs() > 5;
 
       if (!stale && !countMovedSignificantly && lastFetchedRank != null) {
-        yield MyRank(rank: lastFetchedRank, count: count, name: name);
+        yield MyRank(uid: uid, rank: lastFetchedRank, count: count, name: name);
         continue;
       }
 
@@ -79,11 +79,12 @@ class LeaderboardRepository {
         lastFetched = now;
         lastFetchedRank = rank;
         lastFetchedCount = count;
-        yield MyRank(rank: rank, count: count, name: name);
+        yield MyRank(uid: uid, rank: rank, count: count, name: name);
       } catch (_) {
         // If the aggregation fails (offline, permission, etc.) emit best-effort
         // with whatever we last knew.
         yield MyRank(
+          uid: uid,
           rank: lastFetchedRank,
           count: count,
           name: name,

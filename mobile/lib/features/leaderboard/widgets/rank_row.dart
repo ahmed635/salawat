@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/arabic_numbers.dart';
+import '../../../core/user_tag.dart';
 import '../../../models/leaderboard_entry.dart';
 import '../../../theme/colors.dart';
 
@@ -48,8 +49,30 @@ class RankRow extends StatelessWidget {
             _RankBadge(position: position, isDark: isDark),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                entry.name.isEmpty ? '—' : entry.name,
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: entry.name.isEmpty ? '—' : entry.name),
+                    if (entry.name.isNotEmpty) ...[
+                      const TextSpan(text: ' '),
+                      TextSpan(
+                        text: userTag(entry.uid),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: (isMe
+                                  ? (isDark
+                                      ? const Color(0xFF34D399)
+                                      : AppColors.emerald700)
+                                  : (isDark
+                                      ? AppColors.slate200
+                                      : AppColors.slate800))
+                              .withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,

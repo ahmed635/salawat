@@ -16,10 +16,10 @@ class UserRepository {
     if (uid == null) {
       throw StateError('upsertProfile called before sign-in completed');
     }
+    // Only fields whitelisted by firestore.rules may be written here. Server
+    // timestamps (lastTapAt, totalCount) are owned by the Cloud Function.
     await _db.doc(FirestorePaths.user(uid)).set({
       'displayName': displayName,
-      'updatedAt': FieldValue.serverTimestamp(),
-      'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/arabic_numbers.dart';
+import '../../../core/user_tag.dart';
 import '../../../models/leaderboard_entry.dart';
 import '../../../theme/colors.dart';
 
@@ -66,8 +67,23 @@ class StickyMyRank extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                Text(
-                  myRank.name.isEmpty ? '—' : myRank.name,
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: myRank.name.isEmpty ? '—' : myRank.name),
+                      if (myRank.name.isNotEmpty) ...[
+                        const TextSpan(text: ' '),
+                        TextSpan(
+                          text: userTag(myRank.uid),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.85),
                     fontSize: 11,

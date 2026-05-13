@@ -20,6 +20,10 @@ import '../core/prefs.dart';
 ///   lost — they go in the next batch).
 /// - On failure, state is preserved and we retry next tick using the same
 ///   UUID, so the server dedupes via its idempotency table.
+/// - Deltas larger than [_maxDeltaPerCall] (e.g. accumulated during a long
+///   offline session) are split into sequential chunks. Each chunk gets its
+///   own UUID and advances `lastSyncedCount` on success, so a failure
+///   mid-loop preserves partial progress.
 class CounterSync {
   CounterSync({
     required this.ref,
@@ -32,6 +36,10 @@ class CounterSync {
 
   static const _flushInterval = Duration(milliseconds: 2500);
   static const _uuid = Uuid();
+
+  // Must stay in sync with `MAX_DELTA_PER_CALL` in
+  // functions/src/incrementCount.ts. Server rejects anything larger.
+  static const _maxDeltaPerCall = 1000;
 
   final Ref ref;
   final FirebaseFunctions _functions;
@@ -57,27 +65,36 @@ class CounterSync {
     if (_auth.currentUser == null) return;
 
     final localCount = ref.read(counterControllerProvider);
-    final lastSynced = _prefs.lastSyncedCount;
-    final delta = localCount - lastSynced;
-    if (delta <= 0) return;
+    var syncedSoFar = _prefs.lastSyncedCount;
+    var remaining = localCount - syncedSoFar;
+    if (remaining <= 0) return;
 
     _flushing = true;
     try {
-      // Reuse a persisted UUID across app restarts so a request that timed
-      // out and retried after a kill still dedupes server-side.
-      final reqId = _prefs.pendingReqId ?? _uuid.v4();
-      if (_prefs.pendingReqId == null) {
-        await _prefs.setPendingReqId(reqId);
+      while (remaining > 0) {
+        final chunk = remaining > _maxDeltaPerCall ? _maxDeltaPerCall : remaining;
+
+        // Reuse a persisted UUID across app restarts so a request that timed
+        // out and retried after a kill still dedupes server-side. Each chunk
+        // gets its own UUID, allocated lazily and cleared on success.
+        final reqId = _prefs.pendingReqId ?? _uuid.v4();
+        if (_prefs.pendingReqId == null) {
+          await _prefs.setPendingReqId(reqId);
+        }
+
+        await _functions.httpsCallable('incrementCount').call({
+          'delta': chunk,
+          'clientRequestId': reqId,
+          'clientTs': DateTime.now().toUtc().toIso8601String(),
+        });
+
+        // Persist the partial progress before the next chunk, so a crash or
+        // network failure mid-loop leaves the counter in a consistent state.
+        syncedSoFar += chunk;
+        await _prefs.setLastSyncedCount(syncedSoFar);
+        await _prefs.setPendingReqId(null);
+        remaining -= chunk;
       }
-
-      await _functions.httpsCallable('incrementCount').call({
-        'delta': delta,
-        'clientRequestId': reqId,
-        'clientTs': DateTime.now().toUtc().toIso8601String(),
-      });
-
-      await _prefs.setLastSyncedCount(localCount);
-      await _prefs.setPendingReqId(null);
     } catch (_) {
       // Keep pendingReqId + lastSyncedCount as-is so we retry next tick.
       // FirebaseFunctionsException details are intentionally swallowed; the

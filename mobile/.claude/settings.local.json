@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(firebase projects:list)",
+      "Bash(firebase functions:list)",
+      "Bash(flutter analyze *)",
+      "Bash(powershell *)",
+      "Bash(flutter test *)"
+    ]
+  }
+}

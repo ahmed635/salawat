@@ -13,13 +13,21 @@ class Audio {
   final _achievement = AudioPlayer(playerId: 'achievement');
 
   Future<void> init() async {
-    await _tap.setReleaseMode(ReleaseMode.stop);
-    await _tap.setPlayerMode(PlayerMode.lowLatency);
-    await _tap.setSource(AssetSource('audio/tap.wav'));
+    await _prepare(_tap, 'audio/tap.wav');
+    await _prepare(_achievement, 'audio/achievement.wav');
+  }
 
-    await _achievement.setReleaseMode(ReleaseMode.stop);
-    await _achievement.setPlayerMode(PlayerMode.lowLatency);
-    await _achievement.setSource(AssetSource('audio/achievement.wav'));
+  Future<void> _prepare(AudioPlayer player, String asset) async {
+    try {
+      await player.setReleaseMode(ReleaseMode.stop);
+      await player.setPlayerMode(PlayerMode.lowLatency);
+      await player
+          .setSource(AssetSource(asset))
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // SoundPool can hang on some emulators / devices. Audio is a nice-to-have,
+      // never a blocker — leave this player uninitialised; playback will no-op.
+    }
   }
 
   Future<void> playTap() async {

@@ -24,11 +24,13 @@ class LeaderboardEntry {
 /// never tapped (no leaderboard doc yet).
 class MyRank {
   const MyRank({
+    required this.uid,
     required this.rank,
     required this.count,
     required this.name,
   });
 
+  final String uid;
   final int? rank;
   final int count;
   final String name;

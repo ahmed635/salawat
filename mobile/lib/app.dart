@@ -7,6 +7,7 @@ import 'core/theme_controller.dart';
 import 'core/user_controller.dart';
 import 'data/auth_repository.dart';
 import 'data/counter_sync.dart';
+import 'data/user_repository.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'shared/nav_shell.dart';
 import 'theme/app_theme.dart';
@@ -53,6 +54,8 @@ class _AuthGate extends ConsumerStatefulWidget {
 
 class _AuthGateState extends ConsumerState<_AuthGate>
     with WidgetsBindingObserver {
+  bool _profileResynced = false;
+
   @override
   void initState() {
     super.initState();
@@ -85,6 +88,15 @@ class _AuthGateState extends ConsumerState<_AuthGate>
         // Now safe to start the periodic flush.
         ref.read(counterSyncProvider).start();
         final userName = ref.watch(userNameControllerProvider);
+
+        // One-shot resync for users whose displayName write was denied by
+        // an earlier version of upsertProfile (it wrote disallowed fields).
+        // Idempotent merge — no-op once users/{uid}.displayName matches.
+        if (!_profileResynced && userName != null && userName.isNotEmpty) {
+          _profileResynced = true;
+          ref.read(userRepositoryProvider).upsertProfile(displayName: userName);
+        }
+
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
           child: userName == null

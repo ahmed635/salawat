@@ -1,4 +1,5 @@
 import 'package:app/core/arabic_numbers.dart';
+import 'package:app/core/user_tag.dart';
 import 'package:app/features/onboarding/onboarding_screen.dart';
 import 'package:app/features/profile/widgets/badge_card.dart';
 import 'package:app/features/profile/widgets/profile_header.dart';
@@ -64,10 +65,31 @@ void main() {
 
   group('MyRank', () {
     test('isInTopList true for top 50', () {
-      expect(const MyRank(rank: 1, count: 9999, name: 'A').isInTopList, isTrue);
-      expect(const MyRank(rank: 50, count: 100, name: 'A').isInTopList, isTrue);
-      expect(const MyRank(rank: 51, count: 99, name: 'A').isInTopList, isFalse);
-      expect(const MyRank(rank: null, count: 0, name: 'A').isInTopList, isFalse);
+      expect(const MyRank(uid: 'u', rank: 1, count: 9999, name: 'A').isInTopList, isTrue);
+      expect(const MyRank(uid: 'u', rank: 50, count: 100, name: 'A').isInTopList, isTrue);
+      expect(const MyRank(uid: 'u', rank: 51, count: 99, name: 'A').isInTopList, isFalse);
+      expect(const MyRank(uid: 'u', rank: null, count: 0, name: 'A').isInTopList, isFalse);
+    });
+  });
+
+  group('userTag', () {
+    test('returns 4 Arabic-Indic digits', () {
+      final tag = userTag('abc123');
+      expect(tag.length, 4);
+      const arabicIndic = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+      for (final ch in tag.split('')) {
+        expect(arabicIndic.contains(ch), isTrue, reason: 'unexpected char: $ch');
+      }
+    });
+
+    test('is deterministic for the same uid', () {
+      expect(userTag('some-uid-xyz'), userTag('some-uid-xyz'));
+    });
+
+    test('typically differs for different uids', () {
+      // Not a guarantee (1/10000 collision rate by design), but should hold for
+      // these specific strings.
+      expect(userTag('uid-a'), isNot(equals(userTag('uid-b'))));
     });
   });
 

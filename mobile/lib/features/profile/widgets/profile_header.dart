@@ -8,10 +8,15 @@ class ProfileHeader extends StatelessWidget {
     super.key,
     required this.userName,
     required this.count,
+    this.tag,
   });
 
   final String userName;
   final int count;
+
+  /// Optional 4-digit Arabic-Indic disambiguator shown after the name so
+  /// the user knows what others see them as on the leaderboard.
+  final String? tag;
 
   @override
   Widget build(BuildContext context) {
@@ -70,8 +75,23 @@ class ProfileHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              Text(
-                userName,
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: userName),
+                    if (tag != null && tag!.isNotEmpty && userName.isNotEmpty) ...[
+                      const TextSpan(text: ' '),
+                      TextSpan(
+                        text: tag,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,

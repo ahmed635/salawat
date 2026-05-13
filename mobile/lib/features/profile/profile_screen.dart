@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/counter_controller.dart';
 import '../../core/user_controller.dart';
+import '../../core/user_tag.dart';
+import '../../data/auth_repository.dart';
 import '../../models/badge.dart';
 import '../../theme/colors.dart';
 import 'widgets/badge_card.dart';
@@ -17,6 +19,8 @@ class ProfileScreen extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final count = ref.watch(counterControllerProvider);
     final userName = ref.watch(userNameControllerProvider) ?? '';
+    final uid = ref.watch(authStateProvider).valueOrNull?.uid;
+    final tag = uid == null ? null : userTag(uid);
     final unlockedCount = badges.where((b) => count >= b.requirement).length;
 
     return SafeArea(
@@ -26,7 +30,7 @@ class ProfileScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ProfileHeader(userName: userName, count: count),
+            ProfileHeader(userName: userName, count: count, tag: tag),
             const SizedBox(height: 24),
             _SectionTitle(
               isDark: isDark,

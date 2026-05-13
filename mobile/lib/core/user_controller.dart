@@ -16,18 +16,12 @@ class UserNameController extends Notifier<String?> {
     await ref.read(prefsProvider).setUserName(trimmed);
     state = trimmed;
 
-    // Best-effort write to Firestore. If offline, Firestore SDK will queue
-    // the write and replay when connectivity is back. We don't await it
-    // blocking the UI, but we do log failures.
-    unawaited(
-      ref.read(userRepositoryProvider).upsertProfile(displayName: trimmed),
-    );
+    // Await the Firestore write so displayName lands before any tap can
+    // sync — otherwise the Cloud Function would stamp "Anonymous" into the
+    // leaderboard. Offline writes are queued by the SDK and replay later.
+    await ref.read(userRepositoryProvider).upsertProfile(displayName: trimmed);
   }
 }
 
 final userNameControllerProvider =
     NotifierProvider<UserNameController, String?>(UserNameController.new);
-
-void unawaited(Future<void> future) {
-  future.catchError((_) {}); // swallow — Firestore offline queue handles retry
-}
