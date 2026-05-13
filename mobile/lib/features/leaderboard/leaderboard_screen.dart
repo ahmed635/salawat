@@ -174,11 +174,11 @@ class _LifetimeTotalCard extends ConsumerWidget {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.auto_awesome,
+                  Icon(Icons.brightness_2,
                       color: AppColors.yellow300, size: 18),
                   SizedBox(width: 8),
                   Text(
-                    'إجمالي صلوات الأمة منذ الانطلاق',
+                    'عداد الصلاة علي النبي ﷺ ',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 13,
@@ -202,7 +202,7 @@ class _LifetimeTotalCard extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'صلاة على رسول الله ﷺ من جميع المستخدمين',
+                'صلاة',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.85),
                   fontSize: 11,

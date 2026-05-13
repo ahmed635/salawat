@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import 'core/daily_reset.dart';
 import 'core/notifications.dart';
@@ -33,7 +34,7 @@ class SalawatApp extends ConsumerWidget {
     ));
 
     return MaterialApp(
-      title: 'مليون صلاة على النبى',
+      title: 'صلو عليه',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(goldMode: goldMode),
       darkTheme: AppTheme.dark(goldMode: goldMode),
@@ -63,6 +64,18 @@ class _AuthGate extends ConsumerStatefulWidget {
 class _AuthGateState extends ConsumerState<_AuthGate>
     with WidgetsBindingObserver {
   bool _profileResynced = false;
+  bool _splashRemoved = false;
+
+  /// Drops the native splash exactly once, after the first frame is laid
+  /// out. Called from both the data and error branches so a missing
+  /// network can't strand the user on a permanent emerald screen.
+  void _removeSplashOnce() {
+    if (_splashRemoved) return;
+    _splashRemoved = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FlutterNativeSplash.remove();
+    });
+  }
 
   @override
   void initState() {
@@ -91,8 +104,12 @@ class _AuthGateState extends ConsumerState<_AuthGate>
 
     return auth.when(
       loading: () => const _SignInSplash(),
-      error: (e, _) => _AuthErrorScreen(error: e),
+      error: (e, _) {
+        _removeSplashOnce();
+        return _AuthErrorScreen(error: e);
+      },
       data: (_) {
+        _removeSplashOnce();
         // Now safe to start the periodic flush.
         ref.read(counterSyncProvider).start();
         // Reset the local "today's count" at UTC midnight, matching the

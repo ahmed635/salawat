@@ -91,7 +91,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         shape: BoxShape.circle,
       ),
       child: const Icon(
-        Icons.auto_awesome,
+        Icons.brightness_2,
         size: 48,
         color: AppColors.emerald600,
       ),

@@ -92,7 +92,7 @@ class _SectionTitle extends StatelessWidget {
           Row(
             children: [
               const Icon(
-                Icons.auto_awesome,
+                Icons.brightness_2,
                 size: 20,
                 color: AppColors.yellow500,
               ),

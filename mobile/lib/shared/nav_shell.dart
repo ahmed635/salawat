@@ -97,7 +97,7 @@ class _Header extends ConsumerWidget {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.auto_awesome,
+                    Icon(Icons.brightness_2,
                         color: AppColors.yellow300, size: 20),
                     SizedBox(width: 8),
                     Text(

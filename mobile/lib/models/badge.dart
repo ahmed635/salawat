@@ -102,7 +102,7 @@ const badges = <Badge>[
     id: 9,
     title: 'نور الأمة',
     requirement: 250000,
-    icon: Icons.auto_awesome,
+    icon: Icons.brightness_2,
     color: Color(0xFF06B6D4), // cyan-500
     bgLight: Color(0xFFCFFAFE),
     bgDark: Color(0x66155E75),

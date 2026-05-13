@@ -35,6 +35,10 @@ dependencies:
   timezone: ^0.10.0
   flutter_timezone: ^4.1.1
 
+  # Native splash. Used at runtime for preserve()/remove() so it can stay
+  # on-screen until anonymous sign-in resolves.
+  flutter_native_splash: ^2.4.4
+
   # Will be wired in later phases:
   # firebase_messaging, lucide_icons
 
@@ -42,6 +46,27 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  # One-shot tooling: regenerate Android launcher icons from a single
+  # source PNG (assets/icon/app_icon.png). Run after editing the source:
+  #   dart run flutter_launcher_icons
+  flutter_launcher_icons: ^0.14.1
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: false
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 23
+  adaptive_icon_background: "#065F46"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: "assets/icon/app_icon_circle.png"
+  android: true
+  ios: false
+  android_12:
+    color: "#FFFFFF"
+    image: "assets/icon/app_icon_circle.png"
 
 flutter:
   uses-material-design: true

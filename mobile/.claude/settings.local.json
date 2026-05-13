@@ -14,7 +14,10 @@
       "Bash(/c/Users/Mostafa/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gcloud.cmd auth *)",
       "Bash(flutter pub *)",
       "Bash(firebase *)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(git commit *)",
+      "Bash(git pull *)",
+      "Bash(git add *)"
     ]
   }
 }
