@@ -61,105 +61,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          width: 96,
-                          height: 96,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFECFDF5), // emerald-50
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.auto_awesome,
-                            size: 48,
-                            color: AppColors.emerald600,
-                          ),
-                        ),
+                        buildLogo(),
                         const SizedBox(height: 24),
-                        const Text(
-                          'صلوا عليه',
-                          style: TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.slate800,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
+                        buildTitle(),
                         const SizedBox(height: 12),
-                        const Text(
-                          'شارك في أعظم تحدي يومي. سجل اسمك وانضم لآلاف الذاكرين.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.slate500,
-                            height: 1.6,
-                          ),
-                        ),
+                        buildTitleDescription(),
                         const SizedBox(height: 28),
-                        TextField(
-                          controller: _controller,
-                          textAlign: TextAlign.center,
-                          textInputAction: TextInputAction.done,
-                          onChanged: (v) => setState(() => _value = v),
-                          onSubmitted: (_) => _submit(),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.slate800,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'اكتب اسمك للوحة الشرف...',
-                            hintStyle: const TextStyle(
-                              color: AppColors.slate400,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            contentPadding: const EdgeInsets.all(16),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFD1FAE5), // emerald-100
-                                width: 2,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(
-                                color: AppColors.emerald500,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                        ),
+                        buildNameTextField(),
                         const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.emerald600,
-                              disabledBackgroundColor:
-                                  const Color(0xFF6EE7B7), // emerald-300
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              textStyle: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            onPressed: _canSubmit ? _submit : null,
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text('توكلنا على الله'),
-                                SizedBox(width: 8),
-                                Icon(Icons.chevron_left, size: 20),
-                              ],
-                            ),
-                          ),
-                        ),
+                        buildOkeyButton(),
                       ],
                     ),
                   ),
@@ -167,6 +77,116 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Container buildLogo() {
+    return Container(
+      width: 96,
+      height: 96,
+      decoration: const BoxDecoration(
+        color: Color(0xFFECFDF5), // emerald-50
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(
+        Icons.auto_awesome,
+        size: 48,
+        color: AppColors.emerald600,
+      ),
+    );
+  }
+
+  Text buildTitleDescription() {
+    return const Text(
+      'شارك في أعظم تحدي يومي. سجل اسمك وانضم لآلاف الذاكرين.',
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: 13,
+        color: AppColors.slate500,
+        height: 1.6,
+      ),
+    );
+  }
+
+  Text buildTitle() {
+    return const Text(
+      'صلوا عليه',
+      style: TextStyle(
+        fontSize: 30,
+        fontWeight: FontWeight.w900,
+        color: AppColors.slate800,
+        letterSpacing: -0.5,
+      ),
+    );
+  }
+
+  TextField buildNameTextField() {
+    return TextField(
+      controller: _controller,
+      textAlign: TextAlign.center,
+      textInputAction: TextInputAction.done,
+      onChanged: (v) => setState(() => _value = v),
+      onSubmitted: (_) => _submit(),
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        color: AppColors.slate800,
+      ),
+      decoration: InputDecoration(
+        hintText: 'اكتب اسمك للوحة الشرف...',
+        hintStyle: const TextStyle(
+          color: AppColors.slate400,
+          fontWeight: FontWeight.w500,
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.all(16),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(
+            color: Color(0xFFD1FAE5), // emerald-100
+            width: 2,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(
+            color: AppColors.emerald500,
+            width: 2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  SizedBox buildOkeyButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.emerald600,
+          disabledBackgroundColor: const Color(0xFF6EE7B7),
+          // emerald-300
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        onPressed: _canSubmit ? _submit : null,
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('توكلنا على الله'),
+            SizedBox(width: 8),
+            Icon(Icons.chevron_left, size: 20),
+          ],
         ),
       ),
     );

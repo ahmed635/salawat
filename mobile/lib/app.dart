@@ -25,7 +25,7 @@ class SalawatApp extends ConsumerWidget {
     ));
 
     return MaterialApp(
-      title: 'صلوا عليه',
+      title: 'مليون صلاة على النبى',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
