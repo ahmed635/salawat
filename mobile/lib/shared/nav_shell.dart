@@ -10,7 +10,6 @@ import '../features/home/home_screen.dart';
 import '../features/leaderboard/leaderboard_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../theme/app_theme.dart';
-import '../theme/colors.dart';
 import '../theme/gold_mode.dart';
 
 class NavShell extends ConsumerStatefulWidget {
@@ -95,10 +94,16 @@ class _Header extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.brightness_2,
-                        color: AppColors.yellow300, size: 20),
+                    SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: Image.asset(
+                        'assets/icon/app_icon_circle.png',
+                        fit: BoxFit.fill,
+                      ),
+                    ),
                     SizedBox(width: 8),
                     Text(
                       'صلوا عليه',

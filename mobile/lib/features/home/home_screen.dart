@@ -66,18 +66,24 @@ class HomeScreen extends ConsumerWidget {
   }
 
   void _showBadgeUnlocked(BuildContext context, Badge badge) {
+    final brightness = Theme.of(context).brightness;
+    final isDark = brightness == Brightness.dark;
+    // SnackBar's default text colour assumes a dark surface. We override
+    // the background with the badge's pastel/tinted bg, so we have to set
+    // a matching text colour or it disappears against the light variant.
+    final textColor = isDark ? AppColors.slate100 : AppColors.slate800;
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearSnackBars();
     messenger.showSnackBar(
       SnackBar(
-        backgroundColor: badge.bg(Theme.of(context).brightness),
+        backgroundColor: badge.bg(brightness),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: AppColors.yellow400, width: 2),
         ),
-        duration: const Duration(seconds: 4),
+        duration: const Duration(seconds: 10),
         content: Row(
           children: [
             Icon(badge.icon, color: badge.color, size: 28),
@@ -85,9 +91,10 @@ class HomeScreen extends ConsumerWidget {
             Expanded(
               child: Text(
                 'تهانينا! حصلت على وسام: ${badge.title}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 14,
+                  color: textColor,
                 ),
               ),
             ),

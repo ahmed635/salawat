@@ -17,7 +17,8 @@
       "Bash(curl *)",
       "Bash(git commit *)",
       "Bash(git pull *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git push *)"
     ]
   }
 }
