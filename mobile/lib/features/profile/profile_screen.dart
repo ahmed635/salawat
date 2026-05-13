@@ -2,12 +2,14 @@
 import 'package:flutter/material.dart' hide Badge;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/counter_controller.dart';
+import '../../core/committed_days_controller.dart';
+import '../../core/lifetime_counter_controller.dart';
 import '../../core/user_controller.dart';
 import '../../core/user_tag.dart';
 import '../../data/auth_repository.dart';
 import '../../models/badge.dart';
 import '../../theme/colors.dart';
+import '../../theme/gold_mode.dart';
 import 'widgets/badge_card.dart';
 import 'widgets/profile_header.dart';
 
@@ -17,10 +19,14 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final count = ref.watch(counterControllerProvider);
+    // Profile shows the lifetime count (since-install), not the daily one —
+    // achievements need to persist across the midnight reset.
+    final count = ref.watch(lifetimeCounterProvider);
     final userName = ref.watch(userNameControllerProvider) ?? '';
     final uid = ref.watch(authStateProvider).valueOrNull?.uid;
     final tag = uid == null ? null : userTag(uid);
+    final goldMode = ref.watch(goldModeProvider);
+    final committedDays = ref.watch(committedDaysProvider);
     final unlockedCount = badges.where((b) => count >= b.requirement).length;
 
     return SafeArea(
@@ -30,7 +36,13 @@ class ProfileScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ProfileHeader(userName: userName, count: count, tag: tag),
+            ProfileHeader(
+              userName: userName,
+              count: count,
+              tag: tag,
+              goldMode: goldMode,
+              committedDays: committedDays,
+            ),
             const SizedBox(height: 24),
             _SectionTitle(
               isDark: isDark,

@@ -12,11 +12,25 @@ class Prefs {
   static const _kLocalCount = 'sallou_local_count';
   static const _kLastSyncedCount = 'sallou_last_synced_count';
   static const _kPendingReqId = 'sallou_pending_req_id';
+  static const _kLifetimeCount = 'sallou_lifetime_count';
+  static const _kLastResetUtcDay = 'sallou_last_reset_utc_day';
+  static const _kLifetimeBackfillTried = 'sallou_lifetime_backfill_tried';
+  static const _kMilestoneFiredOnDay = 'sallou_milestone_fired_on_utc_day';
+  static const _kCommittedDays = 'sallou_committed_days';
+  static const _kLastActiveUtcDay = 'sallou_last_active_utc_day';
 
   final SharedPreferences _prefs;
 
   static Future<Prefs> load() async {
     final p = await SharedPreferences.getInstance();
+    // Migration: prior to the daily-reset feature, [localCount] doubled as
+    // the lifetime total (badges were unlocked from it). After the change,
+    // localCount is daily and a separate [lifetimeCount] drives achievements.
+    // Seed lifetimeCount from the existing localCount on first run after
+    // upgrade so existing users keep their unlocked badges.
+    if (!p.containsKey(_kLifetimeCount) && p.containsKey(_kLocalCount)) {
+      await p.setInt(_kLifetimeCount, p.getInt(_kLocalCount) ?? 0);
+    }
     return Prefs._(p);
   }
 
@@ -56,6 +70,49 @@ class Prefs {
       await _prefs.setString(_kPendingReqId, value);
     }
   }
+
+  /// Lifetime tap count since install. Independent of [localCount] (which
+  /// resets every UTC midnight) — drives the profile/badges so achievements
+  /// persist across days.
+  int get lifetimeCount => _prefs.getInt(_kLifetimeCount) ?? 0;
+  Future<void> setLifetimeCount(int value) =>
+      _prefs.setInt(_kLifetimeCount, value);
+
+  /// UTC date string (yyyy-MM-dd) of the most recent local daily reset.
+  /// Null on a fresh install — first launch stamps today's date and starts
+  /// the daily cycle.
+  String? get lastResetUtcDay => _prefs.getString(_kLastResetUtcDay);
+  Future<void> setLastResetUtcDay(String value) =>
+      _prefs.setString(_kLastResetUtcDay, value);
+
+  /// True once this device has attempted to call `backfillLifetimeShards`.
+  /// The server is idempotent via its own marker doc; this flag just avoids
+  /// a redundant call on every cold start.
+  bool get lifetimeBackfillTried =>
+      _prefs.getBool(_kLifetimeBackfillTried) ?? false;
+  Future<void> setLifetimeBackfillTried(bool value) =>
+      _prefs.setBool(_kLifetimeBackfillTried, value);
+
+  /// UTC date (yyyy-MM-dd) on which we last fired the "2M challenge has
+  /// begun" notification. Re-fires on the next UTC day so the user sees one
+  /// celebration per cycle.
+  String? get milestoneFiredOnUtcDay =>
+      _prefs.getString(_kMilestoneFiredOnDay);
+  Future<void> setMilestoneFiredOnUtcDay(String value) =>
+      _prefs.setString(_kMilestoneFiredOnDay, value);
+
+  /// Number of distinct UTC days on which the user has sent at least one
+  /// salawat. Incremented client-side on the first tap of each new UTC day,
+  /// so it works fully offline.
+  int get committedDays => _prefs.getInt(_kCommittedDays) ?? 0;
+  Future<void> setCommittedDays(int value) =>
+      _prefs.setInt(_kCommittedDays, value);
+
+  /// UTC date (yyyy-MM-dd) of the user's most recent tap. Used to detect
+  /// the "first tap of a new day" transition that bumps [committedDays].
+  String? get lastActiveUtcDay => _prefs.getString(_kLastActiveUtcDay);
+  Future<void> setLastActiveUtcDay(String value) =>
+      _prefs.setString(_kLastActiveUtcDay, value);
 }
 
 /// Overridden in main() with the loaded Prefs instance.

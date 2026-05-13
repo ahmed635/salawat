@@ -11,6 +11,7 @@ import '../features/leaderboard/leaderboard_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../theme/app_theme.dart';
 import '../theme/colors.dart';
+import '../theme/gold_mode.dart';
 
 class NavShell extends ConsumerStatefulWidget {
   const NavShell({super.key});
@@ -77,11 +78,12 @@ class _Header extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mediaQuery = MediaQuery.of(context);
     final userName = ref.watch(userNameControllerProvider) ?? '';
+    final goldMode = ref.watch(goldModeProvider);
 
     return Container(
       padding: EdgeInsets.fromLTRB(16, mediaQuery.padding.top + 12, 16, 20),
       decoration: BoxDecoration(
-        gradient: AppTheme.headerGradient(brightness),
+        gradient: AppTheme.headerGradient(brightness, goldMode: goldMode),
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
         boxShadow: const [
           BoxShadow(blurRadius: 12, color: Color(0x14000000), offset: Offset(0, 4)),

@@ -12,24 +12,31 @@ interface IncrementRequest {
 }
 
 interface IncrementResponse {
-  newTotal: number;
+  ok: true;
 }
 
 /**
  * Single hot endpoint for the entire app. The client batches taps locally
- * and calls this with the delta every ~2.5 seconds.
+ * and calls this every ~5 seconds.
  *
- * Guarantees:
- *  - Authenticated (anonymous Firebase user is fine).
- *  - Idempotent — safe to retry with the same clientRequestId.
- *  - Sharded global counter (sidesteps Firestore's 1 write/sec/doc throttle).
- *  - Atomic across global / lifetime / daily / user counters.
+ * Per-call writes (3, atomic):
+ *  1. `globalShards/{shardId}` — today's sharded community counter, zeroed
+ *     at UTC midnight by `resetGlobalCounter` (which also rolls the day's
+ *     total into `lifetimeBank/total` before zeroing).
+ *  2. `leaderboardLifetime/{uid}` — per-user lifetime row. Sole source of
+ *     truth for the user's lifetime count; the redundant `users.totalCount`
+ *     mirror was retired to save writes.
+ *  3. `idempotency/{clientRequestId}` — replay guard with a 24h TTL.
+ *
+ * The collections previously written per-call but dropped:
+ *  - `leaderboardDaily/{day}/users/{uid}` — unused, also reaped nightly
+ *    by `cleanupOldData`.
+ *  - `globalLifetimeShards/{shardId}` — replaced by the midnight roll-up
+ *    into `lifetimeBank/total`.
+ *  - `users/{uid}` mirror — `leaderboardLifetime/{uid}.count` already
+ *    carries the same data.
  */
 export const incrementCount = onCall<IncrementRequest, Promise<IncrementResponse>>(
-  // maxInstances kept low to fit the default per-region CPU quota that new
-  // Blaze projects start with (~20K vCPU-seconds). Each Gen 2 instance can
-  // handle ~80 concurrent requests, so 10 is plenty for ~1000 DAU. Bump
-  // later if needed and the project's quota has grown.
   { region: 'us-central1', maxInstances: 10 },
   async (request) => {
     const uid = request.auth?.uid;
@@ -54,7 +61,7 @@ export const incrementCount = onCall<IncrementRequest, Promise<IncrementResponse
     const db = getFirestore();
     const idemRef = db.doc(`idempotency/${clientRequestId}`);
 
-    // --- Idempotency: if we've already processed this request, return cached.
+    // --- Idempotency check.
     const idemSnap = await idemRef.get();
     if (idemSnap.exists) {
       const cached = idemSnap.data();
@@ -62,20 +69,19 @@ export const incrementCount = onCall<IncrementRequest, Promise<IncrementResponse
         // Same UUID from a different user — reject as misuse, don't leak data.
         throw new HttpsError('permission-denied', 'Request id mismatch');
       }
-      return { newTotal: cached?.newTotal ?? 0 };
+      return { ok: true };
     }
 
-    // --- Read current displayName to denormalise into leaderboard docs.
+    // --- Read displayName for leaderboard denormalisation.
     const userRef = db.doc(`users/${uid}`);
     const userSnap = await userRef.get();
     const displayName =
       (userSnap.exists ? userSnap.data()?.displayName : null) ?? 'Anonymous';
 
     const shardId = Math.floor(Math.random() * NUM_SHARDS);
-    const today = todayUtcDateString();
     const expiresAt = new Date(Date.now() + IDEM_TTL_HOURS * 3_600_000);
 
-    // --- Single batch: 5 writes, atomic.
+    // --- Atomic batch: 3 writes.
     const batch = db.batch();
     batch.set(
       db.doc(`globalShards/${shardId}`),
@@ -91,22 +97,6 @@ export const incrementCount = onCall<IncrementRequest, Promise<IncrementResponse
       },
       { merge: true },
     );
-    batch.set(
-      db.doc(`leaderboardDaily/${today}/users/${uid}`),
-      {
-        name: displayName,
-        count: FieldValue.increment(delta),
-      },
-      { merge: true },
-    );
-    batch.set(
-      userRef,
-      {
-        totalCount: FieldValue.increment(delta),
-        lastTapAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
     batch.set(idemRef, {
       uid,
       delta,
@@ -115,21 +105,6 @@ export const incrementCount = onCall<IncrementRequest, Promise<IncrementResponse
     });
     await batch.commit();
 
-    // --- Compute the new user total for the response.
-    const updatedUserSnap = await userRef.get();
-    const newTotal = (updatedUserSnap.data()?.totalCount as number | undefined) ?? delta;
-
-    // Cache for retries.
-    await idemRef.update({ newTotal });
-
-    return { newTotal };
+    return { ok: true };
   },
 );
-
-function todayUtcDateString(): string {
-  const d = new Date();
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(d.getUTCDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}

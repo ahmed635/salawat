@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/arabic_numbers.dart';
 import '../../data/auth_repository.dart';
+import '../../data/global_count_repository.dart';
 import '../../data/leaderboard_repository.dart';
 import '../../theme/colors.dart';
 import 'widgets/rank_row.dart';
@@ -20,7 +22,7 @@ class LeaderboardScreen extends ConsumerWidget {
     return Stack(
       children: [
         RefreshIndicator(
-          color: AppColors.emerald600,
+          color: Theme.of(context).colorScheme.primary,
           onRefresh: () async {
             ref.invalidate(leaderboardTopProvider);
             ref.invalidate(myRankProvider);
@@ -33,6 +35,8 @@ class LeaderboardScreen extends ConsumerWidget {
             child: Column(
               children: [
                 _Header(isDark: isDark),
+                const SizedBox(height: 16),
+                const _LifetimeTotalCard(),
                 const SizedBox(height: 16),
                 _Card(
                   isDark: isDark,
@@ -121,6 +125,93 @@ class _Header extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// "Total salawat sent by the entire community since launch" — sum of the
+/// `globalLifetimeShards` collection. The daily reset never touches these
+/// shards, so this number only ever grows.
+class _LifetimeTotalCard extends ConsumerWidget {
+  const _LifetimeTotalCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final total = ref.watch(globalLifetimeCountStreamProvider).valueOrNull ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.topEnd,
+          end: AlignmentDirectional.bottomStart,
+          colors: isDark
+              ? const [AppColors.slate800, AppColors.slate900]
+              : const [AppColors.emerald600, AppColors.teal700],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Stack(
+        children: [
+          PositionedDirectional(
+            end: -12,
+            top: -12,
+            child: Opacity(
+              opacity: 0.15,
+              child: Icon(
+                Icons.public,
+                size: 96,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.auto_awesome,
+                      color: AppColors.yellow300, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'إجمالي صلوات الأمة منذ الانطلاق',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                formatArabic(total),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1,
+                  shadows: [
+                    Shadow(color: Color(0x66000000), blurRadius: 8, offset: Offset(0, 2)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'صلاة على رسول الله ﷺ من جميع المستخدمين',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

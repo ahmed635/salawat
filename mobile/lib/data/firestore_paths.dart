@@ -6,6 +6,12 @@ class FirestorePaths {
   static const globalShards = 'globalShards';
   static String globalShard(int id) => 'globalShards/$id';
 
+  /// Single-doc accumulator written only at UTC midnight by
+  /// `resetGlobalCounter` (which rolls today's shard sum into it before
+  /// zeroing the daily shards). Reading it + current `globalShards`
+  /// gives the live all-time community total.
+  static const lifetimeBankTotal = 'lifetimeBank/total';
+
   static const users = 'users';
   static String user(String uid) => 'users/$uid';
 

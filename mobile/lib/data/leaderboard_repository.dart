@@ -93,7 +93,12 @@ class LeaderboardRepository {
     }
   }
 
-  static const _rankRecomputeWindow = Duration(seconds: 5);
+  // 30s window keeps rank fresh enough for the user without firing a
+  // count() aggregation on every tap burst. The "count moved by >5" gate
+  // below still triggers a recompute on meaningful jumps inside the
+  // window, so the UX cost is small but the aggregation-read savings are
+  // significant at scale (each aggregation = ~1 read per 1000 docs above).
+  static const _rankRecomputeWindow = Duration(seconds: 30);
 }
 
 final leaderboardRepositoryProvider = Provider<LeaderboardRepository>((ref) {

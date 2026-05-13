@@ -78,8 +78,9 @@ class NextBadgeCard extends StatelessWidget {
                     minHeight: 6,
                     backgroundColor:
                         isDark ? AppColors.slate700 : AppColors.slate100,
-                    valueColor:
-                        const AlwaysStoppedAnimation(AppColors.emerald500),
+                    valueColor: AlwaysStoppedAnimation(
+                      Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                 ),
               ],

@@ -94,7 +94,9 @@ class BadgeCard extends StatelessWidget {
                 value: _progress,
                 minHeight: 4,
                 backgroundColor: isDark ? AppColors.slate700 : AppColors.slate100,
-                valueColor: const AlwaysStoppedAnimation(AppColors.emerald400),
+                valueColor: AlwaysStoppedAnimation(
+                  Theme.of(context).colorScheme.primary,
+                ),
               ),
             ),
           ],

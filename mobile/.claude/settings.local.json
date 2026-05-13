@@ -5,7 +5,16 @@
       "Bash(firebase functions:list)",
       "Bash(flutter analyze *)",
       "Bash(powershell *)",
-      "Bash(flutter test *)"
+      "Bash(flutter test *)",
+      "Bash(npx tsc *)",
+      "Bash(npx *)",
+      "Bash(npm *)",
+      "Bash(gcloud scheduler jobs list *)",
+      "Bash(/c/Users/Mostafa/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gcloud.cmd scheduler *)",
+      "Bash(/c/Users/Mostafa/AppData/Local/Google/Cloud SDK/google-cloud-sdk/bin/gcloud.cmd auth *)",
+      "Bash(flutter pub *)",
+      "Bash(firebase *)",
+      "Bash(curl *)"
     ]
   }
 }

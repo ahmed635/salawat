@@ -9,6 +9,8 @@ class ProfileHeader extends StatelessWidget {
     required this.userName,
     required this.count,
     this.tag,
+    this.goldMode = false,
+    this.committedDays,
   });
 
   final String userName;
@@ -17,6 +19,15 @@ class ProfileHeader extends StatelessWidget {
   /// Optional 4-digit Arabic-Indic disambiguator shown after the name so
   /// the user knows what others see them as on the leaderboard.
   final String? tag;
+
+  /// When true, the header swaps the emerald/teal gradient for an amber
+  /// "gold" one to match the rest of the celebration state.
+  final bool goldMode;
+
+  /// Number of distinct UTC days the user has been active. When null the
+  /// stat pill is hidden (keeps the widget usable from tests/screens that
+  /// don't have a provider scope).
+  final int? committedDays;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +40,9 @@ class ProfileHeader extends StatelessWidget {
           end: Alignment.bottomLeft,
           colors: isDark
               ? const [AppColors.slate800, AppColors.slate900]
-              : const [AppColors.teal500, AppColors.emerald700],
+              : (goldMode
+                  ? const [AppColors.amber400, AppColors.amber700]
+                  : const [AppColors.teal500, AppColors.emerald700]),
         ),
         borderRadius: BorderRadius.circular(40),
         boxShadow: const [
@@ -102,36 +115,65 @@ class ProfileHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(999),
+              _StatPill(label: 'حصيلتك:', value: count),
+              if (committedDays != null) ...[
+                const SizedBox(height: 8),
+                _StatPill(
+                  label: 'أيام الالتزام:',
+                  value: committedDays!,
+                  icon: Icons.event_available,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'حصيلتك:',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      formatArabic(count),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatPill extends StatelessWidget {
+  const _StatPill({
+    required this.label,
+    required this.value,
+    this.icon,
+  });
+
+  final String label;
+  final int value;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, color: Colors.white, size: 14),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            formatArabic(value),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ],
       ),

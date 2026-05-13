@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/arabic_numbers.dart';
 import '../../../theme/colors.dart';
+import '../../../theme/gold_mode.dart';
 
-class GlobalGoalCard extends StatelessWidget {
+class GlobalGoalCard extends ConsumerWidget {
   const GlobalGoalCard({
     super.key,
     required this.current,
@@ -19,8 +21,9 @@ class GlobalGoalCard extends StatelessWidget {
   final bool isOffline;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final goldMode = ref.watch(goldModeProvider);
     final progress = (current / goal).clamp(0.0, 1.0);
 
     return Container(
@@ -32,16 +35,20 @@ class GlobalGoalCard extends StatelessWidget {
                 end: Alignment.bottomLeft,
                 colors: [AppColors.slate800, Color(0xCC1E293B)],
               )
-            : const LinearGradient(
+            : LinearGradient(
                 begin: Alignment.topRight,
                 end: Alignment.bottomLeft,
-                colors: [Color(0xFFECFDF5), Color(0xFFF0FDFA)],
+                colors: goldMode
+                    ? const [Color(0xFFFEF3C7), Color(0xFFFEF9C3)]
+                    : const [Color(0xFFECFDF5), Color(0xFFF0FDFA)],
               ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isDark
               ? AppColors.slate700
-              : const Color(0x80D1FAE5),
+              : (goldMode
+                  ? const Color(0x80FDE68A)
+                  : const Color(0x80D1FAE5)),
         ),
       ),
       child: Stack(
@@ -56,7 +63,11 @@ class GlobalGoalCard extends StatelessWidget {
                 child: Icon(
                   Icons.groups,
                   size: 96,
-                  color: isDark ? AppColors.slate700 : const Color(0xFFD1FAE5),
+                  color: isDark
+                      ? AppColors.slate700
+                      : (goldMode
+                          ? const Color(0xFFFDE68A)
+                          : const Color(0xFFD1FAE5)),
                 ),
               ),
             ),
@@ -73,8 +84,12 @@ class GlobalGoalCard extends StatelessWidget {
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                       color: isDark
-                          ? const Color(0xFF6EE7B7)
-                          : AppColors.emerald900,
+                          ? (goldMode
+                              ? AppColors.amber300
+                              : const Color(0xFF6EE7B7))
+                          : (goldMode
+                              ? AppColors.amber900
+                              : AppColors.emerald900),
                     ),
                   ),
                   Container(
@@ -96,8 +111,12 @@ class GlobalGoalCard extends StatelessWidget {
                         fontSize: 12,
                         fontWeight: FontWeight.w900,
                         color: isDark
-                            ? const Color(0xFF34D399)
-                            : AppColors.emerald600,
+                            ? (goldMode
+                                ? AppColors.amber400
+                                : const Color(0xFF34D399))
+                            : (goldMode
+                                ? AppColors.amber600
+                                : AppColors.emerald600),
                       ),
                     ),
                   ),
@@ -110,7 +129,9 @@ class GlobalGoalCard extends StatelessWidget {
                   value: progress,
                   minHeight: 14,
                   backgroundColor: isDark ? AppColors.slate900 : Colors.white,
-                  valueColor: const AlwaysStoppedAnimation(Color(0xFF14B8A6)),
+                  valueColor: AlwaysStoppedAnimation(
+                    goldMode ? AppColors.amber500 : const Color(0xFF14B8A6),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -127,7 +148,7 @@ class GlobalGoalCard extends StatelessWidget {
                   ),
                   Row(
                     children: [
-                      _PingDot(isOffline: isOffline),
+                      _PingDot(isOffline: isOffline, goldMode: goldMode),
                       const SizedBox(width: 6),
                       Text(
                         '${formatArabic(current)} صلاة',
@@ -135,8 +156,12 @@ class GlobalGoalCard extends StatelessWidget {
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
                           color: isDark
-                              ? const Color(0xFF34D399)
-                              : AppColors.emerald700,
+                              ? (goldMode
+                                  ? AppColors.amber400
+                                  : const Color(0xFF34D399))
+                              : (goldMode
+                                  ? AppColors.amber700
+                                  : AppColors.emerald700),
                         ),
                       ),
                     ],
@@ -152,9 +177,10 @@ class GlobalGoalCard extends StatelessWidget {
 }
 
 class _PingDot extends StatefulWidget {
-  const _PingDot({this.isOffline = false});
+  const _PingDot({this.isOffline = false, this.goldMode = false});
 
   final bool isOffline;
+  final bool goldMode;
 
   @override
   State<_PingDot> createState() => _PingDotState();
@@ -174,10 +200,12 @@ class _PingDotState extends State<_PingDot> with SingleTickerProviderStateMixin 
 
   @override
   Widget build(BuildContext context) {
-    final haloColor =
-        widget.isOffline ? AppColors.red400 : AppColors.emerald400;
-    final coreColor =
-        widget.isOffline ? AppColors.red500 : AppColors.emerald500;
+    final haloColor = widget.isOffline
+        ? AppColors.red400
+        : (widget.goldMode ? AppColors.amber400 : AppColors.emerald400);
+    final coreColor = widget.isOffline
+        ? AppColors.red500
+        : (widget.goldMode ? AppColors.amber500 : AppColors.emerald500);
     return SizedBox(
       width: 12,
       height: 12,

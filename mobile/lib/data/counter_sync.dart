@@ -47,7 +47,7 @@ class CounterSync {
   final Prefs _prefs;
 
   Timer? _timer;
-  bool _flushing = false;
+  Future<void>? _activeFlush;
 
   void start() {
     _timer?.cancel();
@@ -60,16 +60,28 @@ class CounterSync {
   }
 
   /// Force a flush — call from app lifecycle pause and on connectivity restore.
-  Future<void> flushNow() async {
-    if (_flushing) return;
-    if (_auth.currentUser == null) return;
+  ///
+  /// Concurrent callers (periodic tick + lifecycle pause + daily reset) all
+  /// share the same in-flight Future, so awaiting [flushNow] is guaranteed to
+  /// wait for any active flush to finish. That's relied on by the daily
+  /// reset, which zeros [Prefs.lastSyncedCount] right after — if it raced
+  /// with an in-progress flush we could end up with localCount=0 but
+  /// lastSyncedCount=N, permanently stalling future syncs.
+  Future<void> flushNow() {
+    final existing = _activeFlush;
+    if (existing != null) return existing;
+    if (_auth.currentUser == null) return Future.value();
+    final future = _doFlush();
+    _activeFlush = future;
+    return future.whenComplete(() => _activeFlush = null);
+  }
 
+  Future<void> _doFlush() async {
     final localCount = ref.read(counterControllerProvider);
     var syncedSoFar = _prefs.lastSyncedCount;
     var remaining = localCount - syncedSoFar;
     if (remaining <= 0) return;
 
-    _flushing = true;
     try {
       while (remaining > 0) {
         final chunk = remaining > _maxDeltaPerCall ? _maxDeltaPerCall : remaining;
@@ -99,8 +111,6 @@ class CounterSync {
       // Keep pendingReqId + lastSyncedCount as-is so we retry next tick.
       // FirebaseFunctionsException details are intentionally swallowed; the
       // server's idempotency table handles double-deliveries.
-    } finally {
-      _flushing = false;
     }
   }
 }

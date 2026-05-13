@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/audio.dart';
+import 'core/notifications.dart';
 import 'core/prefs.dart';
 import 'firebase_options.dart';
 
@@ -17,6 +18,11 @@ Future<void> main() async {
   // Pre-load audio assets so the very first tap doesn't pay the cost of
   // decoding the WAV (~10ms perceived latency saved).
   Audio.instance.init();
+
+  // Initialize the local-notifications plugin + request POST_NOTIFICATIONS
+  // on Android 13+. Scheduling itself happens later in _AuthGate once we
+  // know the user is in the main shell.
+  await NotificationService.instance.init();
 
   runApp(
     ProviderScope(

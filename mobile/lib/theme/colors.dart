@@ -34,8 +34,15 @@ class AppColors {
   static const slate900 = Color(0xFF0F172A);
   static const slate950 = Color(0xFF020617);
 
-  // Accents used for badges / toasts
+  // Accents used for badges / toasts. Amber is also the "gold mode" brand
+  // palette, applied app-wide when the global community goal is reached.
+  static const amber300 = Color(0xFFFCD34D);
+  static const amber400 = Color(0xFFFBBF24);
   static const amber500 = Color(0xFFF59E0B);
+  static const amber600 = Color(0xFFD97706);
+  static const amber700 = Color(0xFFB45309);
+  static const amber800 = Color(0xFF92400E);
+  static const amber900 = Color(0xFF78350F);
   static const yellow300 = Color(0xFFFDE047);
   static const yellow400 = Color(0xFFFACC15);
   static const yellow500 = Color(0xFFEAB308);

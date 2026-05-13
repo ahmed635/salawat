@@ -23,13 +23,15 @@ void main() {
     test('badgeUnlockedAt returns the badge whose requirement equals count', () {
       expect(badgeUnlockedAt(10)?.title, 'مبتدئ');
       expect(badgeUnlockedAt(100000)?.title, 'الشفاعة المرجوة');
+      expect(badgeUnlockedAt(1000000)?.title, 'مليون صلاة');
       expect(badgeUnlockedAt(11), isNull);
     });
 
     test('nextBadgeFor moves through the ladder correctly', () {
       expect(nextBadgeFor(0).requirement, 10);
       expect(nextBadgeFor(50).requirement, 100);
-      expect(nextBadgeFor(100000).requirement, 100000); // capped at last
+      expect(nextBadgeFor(100000).requirement, 250000);
+      expect(nextBadgeFor(1000000).requirement, 1000000); // capped at last
     });
 
     test('previousBadgeRequirement returns 0 below the first rung', () {

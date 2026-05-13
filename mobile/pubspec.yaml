@@ -30,6 +30,11 @@ dependencies:
   vibration: ^2.0.0
   share_plus: ^10.1.2
 
+  # Local daily reminders ("لا تنسي الصلاة على النبي").
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0
+  flutter_timezone: ^4.1.1
+
   # Will be wired in later phases:
   # firebase_messaging, lucide_icons
 

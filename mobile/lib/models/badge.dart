@@ -98,6 +98,33 @@ const badges = <Badge>[
     bgLight: Color(0xFFFEF9C3),
     bgDark: Color(0x66713F12),
   ),
+  Badge(
+    id: 9,
+    title: 'نور الأمة',
+    requirement: 250000,
+    icon: Icons.auto_awesome,
+    color: Color(0xFF06B6D4), // cyan-500
+    bgLight: Color(0xFFCFFAFE),
+    bgDark: Color(0x66155E75),
+  ),
+  Badge(
+    id: 10,
+    title: 'سراج المحبين',
+    requirement: 500000,
+    icon: Icons.local_fire_department,
+    color: Color(0xFFF43F5E), // rose-500
+    bgLight: Color(0xFFFFE4E6),
+    bgDark: Color(0x669F1239),
+  ),
+  Badge(
+    id: 11,
+    title: 'مليون صلاة',
+    requirement: 1000000,
+    icon: Icons.celebration,
+    color: Color(0xFFF97316), // orange-500
+    bgLight: Color(0xFFFFEDD5),
+    bgDark: Color(0x669A3412),
+  ),
 ];
 
 /// Badge that unlocks at exactly [count], or null.

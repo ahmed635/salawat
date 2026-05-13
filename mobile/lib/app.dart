@@ -3,14 +3,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:cloud_functions/cloud_functions.dart';
+
+import 'core/daily_reset.dart';
+import 'core/notifications.dart';
+import 'core/prefs.dart';
 import 'core/theme_controller.dart';
 import 'core/user_controller.dart';
 import 'data/auth_repository.dart';
 import 'data/counter_sync.dart';
+import 'data/global_count_repository.dart';
 import 'data/user_repository.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'shared/nav_shell.dart';
 import 'theme/app_theme.dart';
+import 'theme/gold_mode.dart';
 
 class SalawatApp extends ConsumerWidget {
   const SalawatApp({super.key});
@@ -18,6 +25,7 @@ class SalawatApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeControllerProvider);
+    final goldMode = ref.watch(goldModeProvider);
 
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -27,8 +35,8 @@ class SalawatApp extends ConsumerWidget {
     return MaterialApp(
       title: 'مليون صلاة على النبى',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      theme: AppTheme.light(goldMode: goldMode),
+      darkTheme: AppTheme.dark(goldMode: goldMode),
       themeMode: themeMode,
       locale: const Locale('ar'),
       supportedLocales: const [Locale('ar'), Locale('en')],
@@ -87,6 +95,30 @@ class _AuthGateState extends ConsumerState<_AuthGate>
       data: (_) {
         // Now safe to start the periodic flush.
         ref.read(counterSyncProvider).start();
+        // Reset the local "today's count" at UTC midnight, matching the
+        // server's scheduled reset of the global shards.
+        ref.read(dailyResetProvider).start();
+        // Fire-and-forget one-shot seeding of `globalLifetimeShards` from the
+        // existing `leaderboardLifetime` sum. Server-side marker doc makes
+        // this safe under concurrent calls from multiple devices.
+        _tryBackfillLifetimeShards(ref);
+        // (Re)schedule daily reminder notifications + the UTC-midnight
+        // "new challenge" alert. Idempotent — cancels and re-creates each
+        // launch so timezone changes (e.g. travel, DST) are picked up.
+        NotificationService.instance.scheduleRecurring();
+
+        // Fire the "2M challenge has begun" notification the moment the
+        // live global count exceeds the daily goal. Gated to once per UTC
+        // day so a single device only buzzes once per cycle.
+        ref.listen<AsyncValue<GlobalCount>>(
+          globalCountStreamProvider,
+          (_, next) {
+            final count = next.valueOrNull?.count ?? 0;
+            if (count > goldModeThreshold) {
+              _maybeFireMilestone(ref);
+            }
+          },
+        );
         final userName = ref.watch(userNameControllerProvider);
 
         // One-shot resync for users whose displayName write was denied by
@@ -105,6 +137,37 @@ class _AuthGateState extends ConsumerState<_AuthGate>
         );
       },
     );
+  }
+}
+
+Future<void> _maybeFireMilestone(WidgetRef ref) async {
+  final prefs = ref.read(prefsProvider);
+  final today = _todayUtcDate();
+  if (prefs.milestoneFiredOnUtcDay == today) return;
+  await prefs.setMilestoneFiredOnUtcDay(today);
+  await NotificationService.instance.showMilestoneCrossed();
+}
+
+String _todayUtcDate() {
+  final d = DateTime.now().toUtc();
+  final mm = d.month.toString().padLeft(2, '0');
+  final dd = d.day.toString().padLeft(2, '0');
+  return '${d.year}-$mm-$dd';
+}
+
+Future<void> _tryBackfillLifetimeShards(WidgetRef ref) async {
+  final prefs = ref.read(prefsProvider);
+  if (prefs.lifetimeBackfillTried) return;
+  await prefs.setLifetimeBackfillTried(true);
+  try {
+    await FirebaseFunctions.instance
+        .httpsCallable('backfillLifetimeShards')
+        .call();
+  } catch (_) {
+    // Best-effort. If it failed (no network, function not deployed yet, etc.)
+    // the server-side marker doc keeps the next attempt safe — but we've
+    // already set the local flag, so retries would only happen on reinstall.
+    // That's fine: any other device will eventually run the seed.
   }
 }
 

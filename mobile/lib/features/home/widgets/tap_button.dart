@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/arabic_numbers.dart';
 import '../../../theme/colors.dart';
+import '../../../theme/gold_mode.dart';
 
 /// The big interactive Salawat button. Mirrors the React source:
 /// 256×256 emerald→teal gradient circle, rotating decorative rings,
 /// expanding ripple on tap, count + label + dhikr text.
-class TapButton extends StatefulWidget {
+class TapButton extends ConsumerStatefulWidget {
   const TapButton({
     super.key,
     required this.count,
@@ -17,10 +19,11 @@ class TapButton extends StatefulWidget {
   final Future<void> Function(Offset localPosition) onTap;
 
   @override
-  State<TapButton> createState() => _TapButtonState();
+  ConsumerState<TapButton> createState() => _TapButtonState();
 }
 
-class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
+class _TapButtonState extends ConsumerState<TapButton>
+    with TickerProviderStateMixin {
   late final AnimationController _ringSlow = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 10),
@@ -58,6 +61,26 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final goldMode = ref.watch(goldModeProvider);
+    final gradientColors = goldMode
+        ? (isDark
+            ? const [AppColors.amber500, AppColors.amber800]
+            : const [AppColors.amber400, AppColors.amber600])
+        : (isDark
+            ? const [AppColors.emerald600, AppColors.teal800]
+            : const [AppColors.emerald400, AppColors.teal600]);
+    final shadowColor =
+        goldMode ? AppColors.amber500 : AppColors.emerald500;
+    final ringSlowColor = goldMode
+        ? (isDark ? AppColors.slate800 : const Color(0xFFFEF3C7))
+        : (isDark ? AppColors.slate800 : const Color(0xFFD1FAE5));
+    final ringFastColor = goldMode
+        ? (isDark
+            ? AppColors.slate800.withValues(alpha: 0.5)
+            : const Color(0xFFFDE68A))
+        : (isDark
+            ? AppColors.slate800.withValues(alpha: 0.5)
+            : const Color(0xFFCCFBF1));
     return SizedBox(
       width: 320,
       height: 320,
@@ -67,15 +90,13 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
           _RotatingRing(
             controller: _ringSlow,
             size: 288,
-            color: isDark ? AppColors.slate800 : const Color(0xFFD1FAE5),
+            color: ringSlowColor,
             strokeWidth: 2,
           ),
           _RotatingRing(
             controller: _ringFast,
             size: 320,
-            color: isDark
-                ? AppColors.slate800.withValues(alpha: 0.5)
-                : const Color(0xFFCCFBF1),
+            color: ringFastColor,
             strokeWidth: 1,
           ),
           GestureDetector(
@@ -94,13 +115,11 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
                   gradient: LinearGradient(
                     begin: Alignment.topRight,
                     end: Alignment.bottomLeft,
-                    colors: isDark
-                        ? const [AppColors.emerald600, AppColors.teal800]
-                        : const [AppColors.emerald400, AppColors.teal600],
+                    colors: gradientColors,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.emerald500.withValues(
+                      color: shadowColor.withValues(
                         alpha: isDark ? 0.2 : 0.5,
                       ),
                       blurRadius: 50,
@@ -172,12 +191,12 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
                           ),
                           const SizedBox(height: 12),
                           const Text(
-                            'صَلِّ عَلَيْهِ',
+                            'صـَلِّ عَلـَيـْهِ',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
-                              letterSpacing: 4,
+                              // letterSpacing: 4,
                               shadows: [
                                 Shadow(
                                   color: Color(0x66000000),

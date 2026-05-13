@@ -11,8 +11,18 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{db}/documents {
 
-    // --- Global counters (sharded) - readable by anyone, writes server-only.
+    // --- Daily community counter (sharded) - readable by anyone, writes
+    // server-only. Zeroed at 00:00 UTC by resetGlobalCounter, which also
+    // rolls the day's sum into lifetimeBank/total.
     match /globalShards/{shardId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // --- All-time community total accumulator. A single doc updated only
+    // by resetGlobalCounter (and a one-time backfill from the retired
+    // globalLifetimeShards collection).
+    match /lifetimeBank/{doc} {
       allow read: if true;
       allow write: if false;
     }
@@ -21,17 +31,6 @@ service cloud.firestore {
     match /leaderboardLifetime/{uid} {
       allow read: if true;
       allow write: if false;
-    }
-
-    // --- Daily leaderboard - readable by anyone, writes server-only.
-    match /leaderboardDaily/{day} {
-      allow read: if true;
-      allow write: if false;
-
-      match /users/{uid} {
-        allow read: if true;
-        allow write: if false;
-      }
     }
 
     // --- User profile - the user can create/edit a small whitelisted subset.

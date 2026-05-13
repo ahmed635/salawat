@@ -18,7 +18,7 @@ class StickyMyRank extends StatelessWidget {
     final rank = myRank.rank;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.emerald600,
+        color: Theme.of(context).colorScheme.primary,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: Theme.of(context).brightness == Brightness.dark
