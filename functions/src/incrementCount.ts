@@ -37,7 +37,15 @@ interface IncrementResponse {
  *    carries the same data.
  */
 export const incrementCount = onCall<IncrementRequest, Promise<IncrementResponse>>(
-  { region: 'us-central1', maxInstances: 10 },
+  {
+    region: 'us-central1',
+    maxInstances: 10,
+    // Reject calls without a valid Firebase App Check token. Pairs with
+    // the client-side FirebaseAppCheck.instance.activate(...) in main.dart.
+    // Stops the leaked-Web-API-key abuse vector (anyone who pulls the key
+    // out of the APK can't drive the global counter from curl).
+    enforceAppCheck: true,
+  },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) {

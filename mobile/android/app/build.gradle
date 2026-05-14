@@ -10,7 +10,9 @@ plugins {
 
 android {
     namespace = "com.salawat.app"
-    compileSdk = flutter.compileSdkVersion
+    // Must be >= targetSdk; pinned alongside targetSdk so the build is
+    // stable across Flutter SDK updates that may lag on Android API levels.
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -33,7 +35,9 @@ android {
         // firebase-auth 23.x requires Android 6.0 (API 23). Flutter's default
         // minSdkVersion is still 21, so we override here.
         minSdk = 23
-        targetSdk = flutter.targetSdkVersion
+        // Pinned to 35 (Android 15) to match current Play Store
+        // requirements regardless of which Flutter SDK builds the app.
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

@@ -1,4 +1,6 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +19,15 @@ Future<void> main() async {
   FlutterNativeSplash.preserve(widgetsBinding: binding);
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
+  );
+  // App Check must activate *before* any Cloud Functions or Firestore
+  // call that hits an enforced endpoint, otherwise the first request
+  // will be rejected with "App attestation failed". Release builds use
+  // Play Integrity; debug builds use the debug provider (debug tokens
+  // are registered in the Firebase Console → App Check → Debug tokens).
+  await FirebaseAppCheck.instance.activate(
+    androidProvider:
+        kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
   );
   final prefs = await Prefs.load();
 

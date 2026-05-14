@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import 'core/daily_reset.dart';
@@ -112,16 +111,13 @@ class _AuthGateState extends ConsumerState<_AuthGate>
         _removeSplashOnce();
         // Now safe to start the periodic flush.
         ref.read(counterSyncProvider).start();
-        // Reset the local "today's count" at UTC midnight, matching the
-        // server's scheduled reset of the global shards.
+        // Reset the local "صلاة اليوم" at the user's local midnight.
+        // The server resets the shared global counter at Asia/Riyadh
+        // midnight on its own schedule.
         ref.read(dailyResetProvider).start();
-        // Fire-and-forget one-shot seeding of `globalLifetimeShards` from the
-        // existing `leaderboardLifetime` sum. Server-side marker doc makes
-        // this safe under concurrent calls from multiple devices.
-        _tryBackfillLifetimeShards(ref);
-        // (Re)schedule daily reminder notifications + the UTC-midnight
-        // "new challenge" alert. Idempotent — cancels and re-creates each
-        // launch so timezone changes (e.g. travel, DST) are picked up.
+        // (Re)schedule daily reminder notifications + the new-challenge
+        // alert (Riyadh midnight). Idempotent — cancels and re-creates
+        // each launch so timezone changes (e.g. travel, DST) are picked up.
         NotificationService.instance.scheduleRecurring();
 
         // Fire the "2M challenge has begun" notification the moment the
@@ -174,22 +170,6 @@ String _todayLocalDate() {
   final mm = d.month.toString().padLeft(2, '0');
   final dd = d.day.toString().padLeft(2, '0');
   return '${d.year}-$mm-$dd';
-}
-
-Future<void> _tryBackfillLifetimeShards(WidgetRef ref) async {
-  final prefs = ref.read(prefsProvider);
-  if (prefs.lifetimeBackfillTried) return;
-  await prefs.setLifetimeBackfillTried(true);
-  try {
-    await FirebaseFunctions.instance
-        .httpsCallable('backfillLifetimeShards')
-        .call();
-  } catch (_) {
-    // Best-effort. If it failed (no network, function not deployed yet, etc.)
-    // the server-side marker doc keeps the next attempt safe — but we've
-    // already set the local flag, so retries would only happen on reinstall.
-    // That's fine: any other device will eventually run the seed.
-  }
 }
 
 class _SignInSplash extends StatelessWidget {

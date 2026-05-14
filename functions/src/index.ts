@@ -4,5 +4,4 @@ initializeApp();
 
 export { incrementCount } from './incrementCount';
 export { resetGlobalCounter } from './resetGlobalCounter';
-export { backfillLifetimeShards } from './backfillLifetimeShards';
 export { cleanupOldData } from './cleanupOldData';

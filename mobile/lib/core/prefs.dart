@@ -14,7 +14,6 @@ class Prefs {
   static const _kPendingReqId = 'sallou_pending_req_id';
   static const _kLifetimeCount = 'sallou_lifetime_count';
   static const _kLastResetUtcDay = 'sallou_last_reset_utc_day';
-  static const _kLifetimeBackfillTried = 'sallou_lifetime_backfill_tried';
   static const _kMilestoneFiredOnDay = 'sallou_milestone_fired_on_utc_day';
   static const _kCommittedDays = 'sallou_committed_days';
   static const _kLastActiveUtcDay = 'sallou_last_active_utc_day';
@@ -85,17 +84,9 @@ class Prefs {
   Future<void> setLastResetUtcDay(String value) =>
       _prefs.setString(_kLastResetUtcDay, value);
 
-  /// True once this device has attempted to call `backfillLifetimeShards`.
-  /// The server is idempotent via its own marker doc; this flag just avoids
-  /// a redundant call on every cold start.
-  bool get lifetimeBackfillTried =>
-      _prefs.getBool(_kLifetimeBackfillTried) ?? false;
-  Future<void> setLifetimeBackfillTried(bool value) =>
-      _prefs.setBool(_kLifetimeBackfillTried, value);
-
-  /// UTC date (yyyy-MM-dd) on which we last fired the "2M challenge has
-  /// begun" notification. Re-fires on the next UTC day so the user sees one
-  /// celebration per cycle.
+  /// Local date (yyyy-MM-dd, device timezone) on which we last fired the
+  /// "2M challenge has begun" notification. Re-fires on the next local
+  /// day so the user sees one celebration per cycle.
   String? get milestoneFiredOnUtcDay =>
       _prefs.getString(_kMilestoneFiredOnDay);
   Future<void> setMilestoneFiredOnUtcDay(String value) =>

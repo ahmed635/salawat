@@ -23,6 +23,11 @@ dependencies:
   firebase_auth: ^5.3.4
   cloud_firestore: ^5.5.1
   cloud_functions: ^5.1.4
+  # App Check binds every Cloud Function call to a verified instance of
+  # the app via Play Integrity, so a leaked Web API key can't be used to
+  # hammer incrementCount from outside the app. Debug builds use a debug
+  # token registered via the Firebase Console.
+  firebase_app_check: ^0.3.2
   uuid: ^4.5.1
 
   # Phase 6 polish
