@@ -38,66 +38,41 @@ class NotificationService {
 
   Future<void> init() async {
     if (_initialized) return;
-    debugPrint('[notif] init: start');
     tzdata.initializeTimeZones();
-    debugPrint('[notif] init: tzdata loaded');
     try {
       final tzName = await FlutterTimezone.getLocalTimezone();
-      debugPrint('[notif] init: device tz = $tzName');
       tz.setLocalLocation(tz.getLocation(tzName));
-    } catch (e, st) {
-      debugPrint('[notif] init: tz lookup failed ($e), falling back to UTC\n$st');
+    } catch (_) {
       tz.setLocalLocation(tz.getLocation('UTC'));
     }
-    final pluginReady = await _plugin.initialize(
+    await _plugin.initialize(
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
       // Fires when the user taps a notification while the app is alive
-      // (foreground or backgrounded). Tapping a notification while the
-      // app is terminated is handled by the Android intent re-launching
-      // MainActivity — we then pick it up via getNotificationAppLaunchDetails
-      // below so logs stay consistent.
+      // (foreground or backgrounded). Cold-start taps (process was dead)
+      // relaunch MainActivity via the plugin's default content intent
+      // — Android handles that part for us, so we only need this hook
+      // here for in-process taps and future payload-based routing.
       onDidReceiveNotificationResponse: _onTap,
     );
-    debugPrint('[notif] init: plugin.initialize returned $pluginReady');
     final androidImpl = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
-    debugPrint('[notif] init: android impl resolved = ${androidImpl != null}');
-    final permGranted = await androidImpl?.requestNotificationsPermission();
-    debugPrint('[notif] init: POST_NOTIFICATIONS granted = $permGranted');
-
-    // Cold-start case: app was terminated and the user tapped a notification
-    // which relaunched MainActivity. Surface that so the app start log is
-    // distinguishable from a plain launcher-icon tap, and so downstream
-    // code (if any) can react to a notification-driven launch.
-    final launch = await _plugin.getNotificationAppLaunchDetails();
-    if (launch?.didNotificationLaunchApp ?? false) {
-      final resp = launch?.notificationResponse;
-      debugPrint(
-        '[notif] launched from terminated tap: id=${resp?.id} payload=${resp?.payload}',
-      );
-    }
-
+    // Android 13+ runtime permission. No-op on older versions.
+    await androidImpl?.requestNotificationsPermission();
     _initialized = true;
-    debugPrint('[notif] init: done');
   }
 
-  /// Tap handler for notifications received while the app is running.
-  /// MainActivity is already foregrounded by the time this fires (the
-  /// underlying Android intent does that for us) — this hook is purely so
-  /// we can log the tap, react to its payload, or navigate.
-  void _onTap(NotificationResponse response) {
-    debugPrint(
-      '[notif] tap: id=${response.id} action=${response.actionId} payload=${response.payload}',
-    );
-  }
+  /// Tap handler for notifications received while the process is alive.
+  /// MainActivity is already foregrounded by the time this fires — this
+  /// hook is the seam for future payload-based routing (deep-link into
+  /// a specific screen, etc.). Currently a no-op.
+  void _onTap(NotificationResponse response) {}
 
   /// Cancels and re-schedules the 3 daily reminders + the daily "new
   /// challenge" UTC-midnight notification. Idempotent — safe to call on
   /// every app start.
   Future<void> scheduleRecurring() async {
-    debugPrint('[notif] scheduleRecurring: enter');
     try {
       if (!_initialized) await init();
 
@@ -105,7 +80,6 @@ class NotificationService {
         await _plugin.cancel(i + 1);
       }
       await _plugin.cancel(_newChallengeId);
-      debugPrint('[notif] scheduleRecurring: cancelled old slots');
 
       for (var i = 0; i < _reminderHours.length; i++) {
         final hour = _reminderHours[i];
@@ -115,7 +89,6 @@ class NotificationService {
         if (!firstFire.isAfter(now)) {
           firstFire = firstFire.add(const Duration(days: 1));
         }
-        debugPrint('[notif] schedule reminder ${i + 1} at $firstFire');
         await _plugin.zonedSchedule(
           i + 1,
           'صلوا عليه',
@@ -145,7 +118,6 @@ class NotificationService {
       if (!riyadhMidnight.isAfter(riyadhNow)) {
         riyadhMidnight = riyadhMidnight.add(const Duration(days: 1));
       }
-      debugPrint('[notif] schedule new-challenge at $riyadhMidnight');
       await _plugin.zonedSchedule(
         _newChallengeId,
         'صلوا عليه',
@@ -157,19 +129,11 @@ class NotificationService {
             UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time,
       );
-
-      // Smoke test: fire one notification right now to confirm channel +
-      // permissions + display all wire up correctly. Will disappear after
-      // the user clears it; remove this block once the diagnostic is done.
-      debugPrint('[notif] firing smoke-test notification');
-      await _plugin.show(
-        9999,
-        'صلوا عليه',
-        'تم تفعيل التذكيرات اليومية',
-        _details(),
-      );
-      debugPrint('[notif] scheduleRecurring: done');
     } catch (e, st) {
+      // Keep this one log — scheduling has died silently in the past and
+      // it took a long debugging session to find out why. Without this
+      // line a fresh regression would once again hide as "notifications
+      // just don't work".
       debugPrint('[notif] scheduleRecurring FAILED: $e\n$st');
     }
   }
