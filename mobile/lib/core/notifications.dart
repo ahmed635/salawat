@@ -129,18 +129,28 @@ class NotificationService {
         );
       }
 
-      final utcNow = tz.TZDateTime.now(tz.UTC);
-      var utcMidnight =
-          tz.TZDateTime.utc(utcNow.year, utcNow.month, utcNow.day);
-      if (!utcMidnight.isAfter(utcNow)) {
-        utcMidnight = utcMidnight.add(const Duration(days: 1));
+      // New-challenge notification — tied to the global counter's reset,
+      // which the server schedules at 00:00 Asia/Riyadh. Passing a Riyadh
+      // TZDateTime + matchDateTimeComponents: time means the plugin
+      // repeats at Riyadh midnight daily, which is the actual instant the
+      // global counter zeros — even for users in other timezones.
+      final riyadh = tz.getLocation('Asia/Riyadh');
+      final riyadhNow = tz.TZDateTime.now(riyadh);
+      var riyadhMidnight = tz.TZDateTime(
+        riyadh,
+        riyadhNow.year,
+        riyadhNow.month,
+        riyadhNow.day,
+      );
+      if (!riyadhMidnight.isAfter(riyadhNow)) {
+        riyadhMidnight = riyadhMidnight.add(const Duration(days: 1));
       }
-      debugPrint('[notif] schedule new-challenge at $utcMidnight (UTC)');
+      debugPrint('[notif] schedule new-challenge at $riyadhMidnight');
       await _plugin.zonedSchedule(
         _newChallengeId,
         'صلوا عليه',
         'ها قد بدأ تحدي جديد',
-        utcMidnight,
+        riyadhMidnight,
         _details(),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:

@@ -7,10 +7,13 @@ import '../data/counter_sync.dart';
 import 'counter_controller.dart';
 import 'prefs.dart';
 
-/// Resets the on-device "صلاة اليوم" counter to 0 at the start of each UTC
-/// day, matching the server's [resetGlobalCounter] scheduled function. The
-/// lifetime counter ([lifetimeCounterProvider]) is intentionally not touched
-/// so achievements persist.
+/// Resets the on-device "صلاة اليوم" counter to 0 at the start of each
+/// **device-local** day. Per-user state runs on the user's own clock —
+/// "today" feels like today regardless of where the user is — while the
+/// shared global counter is reset by the server at Asia/Riyadh midnight
+/// (a few hours apart for users outside that timezone). The lifetime
+/// counter ([lifetimeCounterProvider]) is intentionally not touched so
+/// achievements persist.
 ///
 /// On reset we await any in-flight flush and then trigger one more, so
 /// pending taps land on the *previous* day's daily leaderboard before the
@@ -41,7 +44,7 @@ class DailyResetController {
   }
 
   Future<void> _checkAndReset() async {
-    final today = _todayUtc();
+    final today = _todayLocal();
     final last = _prefs.lastResetUtcDay;
     if (last == today) return;
 
@@ -69,8 +72,11 @@ class DailyResetController {
 
   void _scheduleNext() {
     _timer?.cancel();
-    final now = DateTime.now().toUtc();
-    final nextMidnight = DateTime.utc(now.year, now.month, now.day + 1);
+    final now = DateTime.now();
+    // Local-time midnight tomorrow. DateTime(year, month, day) constructs
+    // a local DateTime at 00:00:00, so this fires when the user's own
+    // clock rolls into the next calendar day.
+    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
     final delay = nextMidnight.difference(now);
     _timer = Timer(delay, () async {
       await _checkAndReset();
@@ -78,8 +84,8 @@ class DailyResetController {
     });
   }
 
-  static String _todayUtc() {
-    final d = DateTime.now().toUtc();
+  static String _todayLocal() {
+    final d = DateTime.now();
     final mm = d.month.toString().padLeft(2, '0');
     final dd = d.day.toString().padLeft(2, '0');
     return '${d.year}-$mm-$dd';

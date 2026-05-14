@@ -21,8 +21,10 @@ const NUM_SHARDS = 10;
  */
 export const resetGlobalCounter = onSchedule(
   {
+    // 00:00 Asia/Riyadh (UTC+3 fixed). Matches local midnight for Saudi
+    // Arabia and is within an hour of midnight for Egypt year-round.
     schedule: '0 0 * * *',
-    timeZone: 'UTC',
+    timeZone: 'Asia/Riyadh',
     region: 'us-central1',
   },
   async () => {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -168,10 +170,104 @@ class GlobalGoalCard extends ConsumerWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 10),
+              _ChallengeCountdown(isDark: isDark, goldMode: goldMode),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Live ticking countdown to the next global-counter reset.
+///
+/// The server zeros `globalShards` at 00:00 Asia/Riyadh (UTC+3 fixed —
+/// see `functions/src/_dates.ts`). This widget shows how long until that
+/// happens regardless of where the user is — same instant for everyone.
+/// Updates once a second.
+class _ChallengeCountdown extends StatefulWidget {
+  const _ChallengeCountdown({required this.isDark, required this.goldMode});
+
+  final bool isDark;
+  final bool goldMode;
+
+  @override
+  State<_ChallengeCountdown> createState() => _ChallengeCountdownState();
+}
+
+class _ChallengeCountdownState extends State<_ChallengeCountdown> {
+  // Asia/Riyadh is fixed UTC+3 — no DST, no transition headaches.
+  static const _resetTzOffset = Duration(hours: 3);
+
+  late Timer _ticker;
+  Duration _remaining = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _recompute();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(_recompute);
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker.cancel();
+    super.dispose();
+  }
+
+  void _recompute() {
+    final nowUtc = DateTime.now().toUtc();
+    // Walk into the Riyadh timezone, find the next 00:00 there, walk back
+    // to UTC. The difference from `now` is how long until reset.
+    final riyadhNow = nowUtc.add(_resetTzOffset);
+    final nextRiyadhMidnight =
+        DateTime.utc(riyadhNow.year, riyadhNow.month, riyadhNow.day + 1);
+    final nextResetUtc = nextRiyadhMidnight.subtract(_resetTzOffset);
+    final diff = nextResetUtc.difference(nowUtc);
+    _remaining = diff.isNegative ? Duration.zero : diff;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final h = _remaining.inHours.toString().padLeft(2, '0');
+    final m = (_remaining.inMinutes % 60).toString().padLeft(2, '0');
+    final s = (_remaining.inSeconds % 60).toString().padLeft(2, '0');
+    // Arabic-Indic digits, monospaced visual via FontWeight + letterSpacing.
+    final timeText = arabizeDigits('$h:$m:$s');
+
+    final accentLight = widget.goldMode
+        ? AppColors.amber700
+        : AppColors.emerald700;
+    final accentDark = widget.goldMode
+        ? AppColors.amber400
+        : const Color(0xFF34D399);
+    final labelColor =
+        widget.isDark ? AppColors.slate400 : AppColors.slate500;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          'ينتهي التحدي خلال:',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: labelColor,
+          ),
+        ),
+        Text(
+          timeText,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+            color: widget.isDark ? accentDark : accentLight,
+          ),
+        ),
+      ],
     );
   }
 }

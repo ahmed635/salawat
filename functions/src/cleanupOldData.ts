@@ -1,6 +1,8 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { getFirestore } from 'firebase-admin/firestore';
 
+import { todayInResetTz } from './_dates';
+
 /**
  * Daily janitor.
  *
@@ -20,8 +22,9 @@ import { getFirestore } from 'firebase-admin/firestore';
  */
 export const cleanupOldData = onSchedule(
   {
+    // Run at 00:00 Asia/Riyadh, same instant as resetGlobalCounter.
     schedule: '0 0 * * *',
-    timeZone: 'UTC',
+    timeZone: 'Asia/Riyadh',
     region: 'us-central1',
     // Plenty of headroom for `recursiveDelete` on multi-thousand-user
     // subcollections. Default 60s would cut us off in a large month.
@@ -29,14 +32,15 @@ export const cleanupOldData = onSchedule(
   },
   async () => {
     const db = getFirestore();
-    const today = todayUtcDateString();
+    const today = todayInResetTz();
 
     const dailyDocs = await db.collection('leaderboardDaily').listDocuments();
     let removed = 0;
     for (const docRef of dailyDocs) {
-      // The doc ID is a yyyy-MM-dd string, so lexicographic comparison
-      // matches chronological order. Anything strictly before today gets
-      // wiped, including its `users/` subcollection.
+      // The doc ID is a yyyy-MM-dd string in the reset timezone, so
+      // lexicographic comparison matches chronological order. Anything
+      // strictly before today gets wiped, including its `users/`
+      // subcollection.
       if (docRef.id < today) {
         await db.recursiveDelete(docRef);
         removed += 1;
@@ -47,11 +51,3 @@ export const cleanupOldData = onSchedule(
     );
   },
 );
-
-function todayUtcDateString(): string {
-  const d = new Date();
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(d.getUTCDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}

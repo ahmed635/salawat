@@ -159,14 +159,18 @@ class _AuthGateState extends ConsumerState<_AuthGate>
 
 Future<void> _maybeFireMilestone(WidgetRef ref) async {
   final prefs = ref.read(prefsProvider);
-  final today = _todayUtcDate();
+  final today = _todayLocalDate();
   if (prefs.milestoneFiredOnUtcDay == today) return;
   await prefs.setMilestoneFiredOnUtcDay(today);
   await NotificationService.instance.showMilestoneCrossed();
 }
 
-String _todayUtcDate() {
-  final d = DateTime.now().toUtc();
+// Gate is keyed on the user's own clock so each device sees one
+// celebration per local calendar day. (Pref key still says "Utc" for
+// backward-compat with existing installs; only the value semantics
+// changed.)
+String _todayLocalDate() {
+  final d = DateTime.now();
   final mm = d.month.toString().padLeft(2, '0');
   final dd = d.day.toString().padLeft(2, '0');
   return '${d.year}-$mm-$dd';
