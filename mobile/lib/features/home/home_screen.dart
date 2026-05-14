@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/audio.dart';
 import '../../core/counter_controller.dart';
 import '../../core/haptics.dart';
+import '../../core/lifetime_counter_controller.dart';
 import '../../data/global_count_repository.dart';
 import '../../models/badge.dart';
 import '../../theme/colors.dart';
@@ -20,7 +21,14 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The tap button shows the daily count ("صلاة اليوم") that resets at
+    // UTC midnight via DailyResetController.
     final count = ref.watch(counterControllerProvider);
+    // The badge progress card reads the *lifetime* counter so achievements
+    // don't slide back to zero at every daily reset — badges are unlocked
+    // for life once earned, mirroring how the profile screen and the
+    // badge-unlock celebration both already key off lifetime.
+    final lifetimeCount = ref.watch(lifetimeCounterProvider);
     // Live community total (sum of 10 sharded docs). Shows 0 until Firestore
     // delivers its first snapshot. `isOffline` is true when the latest
     // snapshot was served from cache — i.e. we've lost the backend.
@@ -45,7 +53,7 @@ class HomeScreen extends ConsumerWidget {
               onTap: (_) => _onTap(context, ref),
             ),
             const SizedBox(height: 24),
-            NextBadgeCard(count: count),
+            NextBadgeCard(count: lifetimeCount),
           ],
         ),
       ),
