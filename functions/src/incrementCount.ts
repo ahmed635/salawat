@@ -40,11 +40,16 @@ export const incrementCount = onCall<IncrementRequest, Promise<IncrementResponse
   {
     region: 'us-central1',
     maxInstances: 10,
-    // Reject calls without a valid Firebase App Check token. Pairs with
-    // the client-side FirebaseAppCheck.instance.activate(...) in main.dart.
-    // Stops the leaked-Web-API-key abuse vector (anyone who pulls the key
-    // out of the APK can't drive the global counter from curl).
-    enforceAppCheck: true,
+    // App Check enforcement is OFF until we ship a release keystore with
+    // its SHA-256 fingerprints registered with Firebase, and Play
+    // Integrity confirmed working in production. With enforce=true and
+    // Play Integrity not yet configured, release-build clients can't
+    // produce a valid token and every incrementCount call gets rejected
+    // with UNAUTHENTICATED. Re-flip to `true` once Play Integrity is
+    // attesting tokens for the release-signed app. The client side
+    // (main.dart) already initialises FirebaseAppCheck.activate(...);
+    // its tokens are accepted but not required yet.
+    enforceAppCheck: false,
   },
   async (request) => {
     const uid = request.auth?.uid;

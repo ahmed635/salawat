@@ -91,7 +91,7 @@ class HomeScreen extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: AppColors.yellow400, width: 2),
         ),
-        duration: const Duration(seconds: 10),
+        duration: const Duration(seconds: 5),
         content: Row(
           children: [
             Icon(badge.icon, color: badge.color, size: 28),

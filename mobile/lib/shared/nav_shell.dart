@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/arabic_numbers.dart';
-import '../core/counter_controller.dart';
+import '../core/lifetime_counter_controller.dart';
 import '../core/theme_controller.dart';
 import '../core/user_controller.dart';
 import '../features/home/home_screen.dart';
@@ -156,7 +156,7 @@ class _Header extends ConsumerWidget {
   }
 
   Future<void> _share(BuildContext context, WidgetRef ref) async {
-    final count = ref.read(counterControllerProvider);
+    final count = ref.watch(lifetimeCounterProvider);
     final text =
         'أنا وصلت لـ ${formatArabic(count)} صلاة على النبي ﷺ! '
         'شاركني الأجر وتحداني في لوحة الشرف 🌟';
