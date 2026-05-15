@@ -12,6 +12,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _controller = TextEditingController();
   String _value = '';
 
@@ -23,8 +24,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   bool get _canSubmit => _value.trim().length >= 2;
 
+  /// Mirrors the validator wired into the TextFormField. Returns null when
+  /// the value is acceptable, otherwise the Arabic message to display
+  /// underneath the field.
+  String? _validateName(String? raw) {
+    final s = (raw ?? '').trim();
+    if (s.isEmpty) return 'الاسم مطلوب';
+    if (s.length < 2) return 'يجب أن يكون الاسم حرفين على الأقل';
+    return null;
+  }
+
   Future<void> _submit() async {
-    if (!_canSubmit) return;
+    final ok = _formKey.currentState?.validate() ?? false;
+    if (!ok) return;
     await ref.read(userNameControllerProvider.notifier).save(_value);
   }
 
@@ -58,19 +70,22 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         top: BorderSide(color: AppColors.emerald400, width: 4),
                       ),
                     ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        buildLogo(),
-                        const SizedBox(height: 24),
-                        buildTitle(),
-                        const SizedBox(height: 12),
-                        buildTitleDescription(),
-                        const SizedBox(height: 28),
-                        buildNameTextField(),
-                        const SizedBox(height: 16),
-                        buildOkeyButton(),
-                      ],
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          buildLogo(),
+                          const SizedBox(height: 24),
+                          buildTitle(),
+                          const SizedBox(height: 12),
+                          buildTitleDescription(),
+                          const SizedBox(height: 28),
+                          buildNameTextField(),
+                          const SizedBox(height: 16),
+                          buildOkeyButton(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -122,13 +137,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  TextField buildNameTextField() {
-    return TextField(
+  TextFormField buildNameTextField() {
+    return TextFormField(
       controller: _controller,
       textAlign: TextAlign.center,
       textInputAction: TextInputAction.done,
       onChanged: (v) => setState(() => _value = v),
-      onSubmitted: (_) => _submit(),
+      onFieldSubmitted: (_) => _submit(),
+      // Show validation errors as soon as the user starts typing,
+      // rather than only after the first submit attempt.
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      validator: _validateName,
       style: const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w700,
@@ -156,6 +175,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             color: AppColors.emerald500,
             width: 2,
           ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.red500, width: 2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.red500, width: 2),
         ),
       ),
     );
