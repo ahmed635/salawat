@@ -1,6 +1,8 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
+import { sendToTopic, TOPIC_COMMUNITY_EVENTS } from './_fcm';
+
 const NUM_SHARDS = 10;
 
 /**
@@ -57,5 +59,18 @@ export const resetGlobalCounter = onSchedule(
         tx.set(ref, { count: 0 }, { merge: true });
       }
     });
+
+    // Reset done — fan out the "new challenge has begun" notification to
+    // every subscribed device. This replaces the on-device midnight
+    // notification we used to schedule locally, which OEMs were killing.
+    try {
+      await sendToTopic(
+        TOPIC_COMMUNITY_EVENTS,
+        'صلوا عليه',
+        'ها قد بدأ تحدي جديد',
+      );
+    } catch (e) {
+      console.error('resetGlobalCounter: FCM send failed', e);
+    }
   },
 );

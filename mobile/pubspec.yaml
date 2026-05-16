@@ -34,8 +34,17 @@ dependencies:
   audioplayers: ^6.1.0
   vibration: ^2.0.0
   share_plus: ^10.1.2
+  # Tells the home-screen ping dot to flip to red the moment the device
+  # drops WiFi/cellular, instead of waiting for the next polling fetch
+  # to fail.
+  connectivity_plus: ^6.0.5
 
-  # Local daily reminders ("لا تنسي الصلاة على النبي").
+  # Notifications come from FCM (server → topic → device). flutter_local_
+  # notifications is kept only for displaying foreground messages, since
+  # Android by design doesn't auto-display FCM notifications while the
+  # app owns the screen. timezone/flutter_timezone stay because the
+  # countdown widget still needs them.
+  firebase_messaging: ^15.1.5
   flutter_local_notifications: ^18.0.1
   timezone: ^0.10.0
   flutter_timezone: ^4.1.1

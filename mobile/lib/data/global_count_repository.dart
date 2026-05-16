@@ -1,16 +1,18 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'firestore_paths.dart';
 
 /// Snapshot of the global community count plus a connectivity hint.
 ///
-/// `isOffline` flips to true when the most recent attempt at a server-side
-/// read failed (no network / Firestore unreachable / timed out). When that
-/// happens we serve the most recent cached value so the UI keeps something
-/// on screen — the home screen's ping dot turns red to signal staleness.
+/// `isOffline` flips to true when the device drops its network (detected
+/// instantly via [Connectivity]) or when a server-side read fails. While
+/// offline we keep showing the last known count from cache so the home
+/// screen never goes blank — the ping dot just turns red to signal
+/// staleness.
 class GlobalCount {
   const GlobalCount({required this.count, required this.isOffline});
 
@@ -18,50 +20,100 @@ class GlobalCount {
   final bool isOffline;
 }
 
-/// Reads the sharded global counters with a client-local 5-minute polling
-/// cadence.
+/// Reads the sharded global counters with a client-local 1-minute polling
+/// cadence, layered with immediate connectivity-change reactions.
 ///
-/// The previous design used a Firestore snapshot listener. At scale that
-/// pattern was the dominant Firestore cost: every shard write fanned out
-/// to one billed read on every device that had the home screen open. With
-/// thousands of active users and ~35 shard writes/minute, that's tens of
-/// millions of reads/day.
-///
-/// Polling locally on each device every 5 minutes drops the listener-side
-/// cost to ~96 fetches/user/active-day per stream, which is several orders
-/// of magnitude cheaper. Trade-off: the on-screen count only ticks every
-/// 5 minutes, so users will see updates from other devices in stepwise
-/// jumps rather than smoothly.
+/// Two triggers can cause a new value to flow out:
+///   1. The periodic timer fires (every 1 min while a listener is alive).
+///   2. The OS reports a network-state change. Going offline emits a
+///      new [GlobalCount] with `isOffline: true` immediately (no waiting
+///      for the next poll to fail). Coming back online triggers a fresh
+///      fetch so the count refreshes instantly too.
 ///
 /// All-time community total is `lifetimeBank/total.count + sum(globalShards)`
-/// — the bank doc is updated only once a day at UTC midnight (by
-/// `resetGlobalCounter`); the live daily sum is added on each fetch.
+/// — the bank doc is updated only once a day at 00:00 Asia/Riyadh by
+/// `resetGlobalCounter`; the live daily sum is added on each fetch.
 class GlobalCountRepository {
   GlobalCountRepository(this._db);
   final FirebaseFirestore _db;
 
-  // Tuned by the user: 5 minutes is a good balance between UI freshness
-  // and Firestore cost. The fetch is local-clock driven (no server cron),
-  // so each device's polling pace is independent.
-  static const _refreshInterval = Duration(minutes: 5);
+  // Tuned by the user: 1 minute is the freshness floor for "this is the
+  // community total *right now*". Lower than 1 min and we start paying
+  // serious Firestore-read bills for active users.
+  static const _refreshInterval = Duration(minutes: 1);
 
   // Cap a single fetch attempt so a hung network doesn't block the
   // periodic loop indefinitely. After timeout we fall back to cache.
   static const _fetchTimeout = Duration(seconds: 8);
 
-  Stream<GlobalCount> watch() async* {
-    yield await _fetchDaily();
-    while (true) {
-      await Future<void>.delayed(_refreshInterval);
-      yield await _fetchDaily();
-    }
+  Stream<GlobalCount> watch() => _streamFor(_fetchDaily);
+
+  Stream<int> watchLifetime() {
+    // Lifetime stream doesn't carry an isOffline flag in its public type,
+    // so a simple polling loop is enough; no need for the connectivity
+    // overlay. (Wraps so we still react to "online again" by triggering
+    // a fresh fetch on the next poll naturally.)
+    return _periodic(_fetchLifetime).map((c) => c.count);
   }
 
-  Stream<int> watchLifetime() async* {
-    yield await _fetchLifetime();
+  /// Polling loop with a connectivity overlay. Yields [GlobalCount] on:
+  /// (a) initial subscribe, (b) every [_refreshInterval], (c) every
+  /// connectivity change. Going offline emits the last known count with
+  /// `isOffline: true` without waiting for the next poll.
+  Stream<GlobalCount> _streamFor(
+    Future<GlobalCount> Function() fetch,
+  ) {
+    late StreamController<GlobalCount> controller;
+    Timer? timer;
+    StreamSubscription<List<ConnectivityResult>>? connSub;
+    GlobalCount last = const GlobalCount(count: 0, isOffline: false);
+    var disposed = false;
+
+    Future<void> doFetch() async {
+      final v = await fetch();
+      if (disposed || controller.isClosed) return;
+      last = v;
+      controller.add(v);
+    }
+
+    void emitOffline() {
+      if (disposed || controller.isClosed) return;
+      if (last.isOffline) return; // already red
+      last = GlobalCount(count: last.count, isOffline: true);
+      controller.add(last);
+    }
+
+    controller = StreamController<GlobalCount>(
+      onListen: () async {
+        // Kick off with one fetch so the UI has something to show.
+        await doFetch();
+        timer = Timer.periodic(_refreshInterval, (_) => doFetch());
+        connSub = Connectivity().onConnectivityChanged.listen((results) {
+          final none = results.isEmpty ||
+              results.every((r) => r == ConnectivityResult.none);
+          if (none) {
+            emitOffline();
+          } else {
+            // Connectivity restored — refresh immediately so the dot
+            // flips green and the count catches up.
+            doFetch();
+          }
+        });
+      },
+      onCancel: () async {
+        disposed = true;
+        timer?.cancel();
+        await connSub?.cancel();
+      },
+    );
+    return controller.stream;
+  }
+
+  Stream<GlobalCount> _periodic(Future<GlobalCount> Function() fetch) async* {
+    yield await fetch();
     while (true) {
       await Future<void>.delayed(_refreshInterval);
-      yield await _fetchLifetime();
+      yield await fetch();
     }
   }
 
@@ -82,7 +134,7 @@ class GlobalCountRepository {
     }
   }
 
-  Future<int> _fetchLifetime() async {
+  Future<GlobalCount> _fetchLifetime() async {
     final bankRef = _db.doc(FirestorePaths.lifetimeBankTotal);
     final shardsCol = _db.collection(FirestorePaths.globalShards);
     try {
@@ -92,15 +144,22 @@ class GlobalCountRepository {
       final shardSnap = await shardsCol
           .get(const GetOptions(source: Source.server))
           .timeout(_fetchTimeout);
-      return _lifetimeOf(bankSnap, shardSnap);
+      return GlobalCount(
+        count: _lifetimeOf(bankSnap, shardSnap),
+        isOffline: false,
+      );
     } catch (_) {
       try {
-        final bankCached = await bankRef.get(const GetOptions(source: Source.cache));
+        final bankCached =
+            await bankRef.get(const GetOptions(source: Source.cache));
         final shardCached =
             await shardsCol.get(const GetOptions(source: Source.cache));
-        return _lifetimeOf(bankCached, shardCached);
+        return GlobalCount(
+          count: _lifetimeOf(bankCached, shardCached),
+          isOffline: true,
+        );
       } catch (_) {
-        return 0;
+        return const GlobalCount(count: 0, isOffline: true);
       }
     }
   }

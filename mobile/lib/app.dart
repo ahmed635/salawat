@@ -6,13 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import 'core/daily_reset.dart';
-import 'core/notifications.dart';
-import 'core/prefs.dart';
 import 'core/theme_controller.dart';
 import 'core/user_controller.dart';
 import 'data/auth_repository.dart';
 import 'data/counter_sync.dart';
-import 'data/global_count_repository.dart';
 import 'data/user_repository.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'shared/nav_shell.dart';
@@ -115,23 +112,6 @@ class _AuthGateState extends ConsumerState<_AuthGate>
         // The server resets the shared global counter at Asia/Riyadh
         // midnight on its own schedule.
         ref.read(dailyResetProvider).start();
-        // (Re)schedule daily reminder notifications + the new-challenge
-        // alert (Riyadh midnight). Idempotent — cancels and re-creates
-        // each launch so timezone changes (e.g. travel, DST) are picked up.
-        NotificationService.instance.scheduleRecurring();
-
-        // Fire the "2M challenge has begun" notification the moment the
-        // live global count exceeds the daily goal. Gated to once per UTC
-        // day so a single device only buzzes once per cycle.
-        ref.listen<AsyncValue<GlobalCount>>(
-          globalCountStreamProvider,
-          (_, next) {
-            final count = next.valueOrNull?.count ?? 0;
-            if (count > goldModeThreshold) {
-              _maybeFireMilestone(ref);
-            }
-          },
-        );
         final userName = ref.watch(userNameControllerProvider);
 
         // One-shot resync for users whose displayName write was denied by
@@ -151,25 +131,6 @@ class _AuthGateState extends ConsumerState<_AuthGate>
       },
     );
   }
-}
-
-Future<void> _maybeFireMilestone(WidgetRef ref) async {
-  final prefs = ref.read(prefsProvider);
-  final today = _todayLocalDate();
-  if (prefs.milestoneFiredOnUtcDay == today) return;
-  await prefs.setMilestoneFiredOnUtcDay(today);
-  await NotificationService.instance.showMilestoneCrossed();
-}
-
-// Gate is keyed on the user's own clock so each device sees one
-// celebration per local calendar day. (Pref key still says "Utc" for
-// backward-compat with existing installs; only the value semantics
-// changed.)
-String _todayLocalDate() {
-  final d = DateTime.now();
-  final mm = d.month.toString().padLeft(2, '0');
-  final dd = d.day.toString().padLeft(2, '0');
-  return '${d.year}-$mm-$dd';
 }
 
 class _SignInSplash extends StatelessWidget {
