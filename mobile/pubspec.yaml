@@ -1,7 +1,7 @@
 name: app
 description: "Salawat counter app - Pray for the Prophet Muhammad ﷺ"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+5
 
 environment:
   sdk: ^3.6.1

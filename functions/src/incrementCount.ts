@@ -1,6 +1,8 @@
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
+import { todayInResetTz } from './_dates';
+
 const NUM_SHARDS = 10;
 const MAX_DELTA_PER_CALL = 1000;
 const IDEM_TTL_HOURS = 24;
@@ -19,22 +21,20 @@ interface IncrementResponse {
  * Single hot endpoint for the entire app. The client batches taps locally
  * and calls this every ~5 seconds.
  *
- * Per-call writes (3, atomic):
+ * Per-call writes (4, atomic):
  *  1. `globalShards/{shardId}` — today's sharded community counter, zeroed
- *     at UTC midnight by `resetGlobalCounter` (which also rolls the day's
- *     total into `lifetimeBank/total` before zeroing).
- *  2. `leaderboardLifetime/{uid}` — per-user lifetime row. Sole source of
- *     truth for the user's lifetime count; the redundant `users.totalCount`
- *     mirror was retired to save writes.
- *  3. `idempotency/{clientRequestId}` — replay guard with a 24h TTL.
+ *     at 00:00 Asia/Riyadh by `resetGlobalCounter` (which also rolls the
+ *     day's total into `lifetimeBank/total` before zeroing).
+ *  2. `leaderboardLifetime/{uid}` — per-user lifetime row. Drives badge
+ *     achievements on the profile screen and the "since launch" total.
+ *  3. `leaderboardDaily/{todayRiyadh}/users/{uid}` — per-user row for
+ *     the live daily competition shown on the leaderboard. The old day's
+ *     subcollection is reaped by `cleanupOldData` at midnight.
+ *  4. `idempotency/{clientRequestId}` — replay guard with a 24h TTL.
  *
- * The collections previously written per-call but dropped:
- *  - `leaderboardDaily/{day}/users/{uid}` — unused, also reaped nightly
- *    by `cleanupOldData`.
- *  - `globalLifetimeShards/{shardId}` — replaced by the midnight roll-up
- *    into `lifetimeBank/total`.
- *  - `users/{uid}` mirror — `leaderboardLifetime/{uid}.count` already
- *    carries the same data.
+ * `globalLifetimeShards` and `users.totalCount` were retired in earlier
+ * passes — the former replaced by `lifetimeBank/total`, the latter
+ * redundant with `leaderboardLifetime/{uid}.count`.
  */
 export const incrementCount = onCall<IncrementRequest, Promise<IncrementResponse>>(
   {
@@ -93,8 +93,9 @@ export const incrementCount = onCall<IncrementRequest, Promise<IncrementResponse
 
     const shardId = Math.floor(Math.random() * NUM_SHARDS);
     const expiresAt = new Date(Date.now() + IDEM_TTL_HOURS * 3_600_000);
+    const today = todayInResetTz();
 
-    // --- Atomic batch: 3 writes.
+    // --- Atomic batch: 4 writes.
     const batch = db.batch();
     batch.set(
       db.doc(`globalShards/${shardId}`),
@@ -103,6 +104,15 @@ export const incrementCount = onCall<IncrementRequest, Promise<IncrementResponse
     );
     batch.set(
       db.doc(`leaderboardLifetime/${uid}`),
+      {
+        name: displayName,
+        count: FieldValue.increment(delta),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+    batch.set(
+      db.doc(`leaderboardDaily/${today}/users/${uid}`),
       {
         name: displayName,
         count: FieldValue.increment(delta),

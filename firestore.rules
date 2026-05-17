@@ -33,6 +33,20 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // --- Daily competition leaderboard - readable by anyone, writes
+    // server-only. The visible leaderboard on the home screen reads
+    // today's subcollection (keyed by Asia/Riyadh date). Old days are
+    // recursively deleted nightly by `cleanupOldData`.
+    match /leaderboardDaily/{day} {
+      allow read: if true;
+      allow write: if false;
+
+      match /users/{uid} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
     // --- User profile - the user can create/edit a small whitelisted subset.
     // The client may only touch displayName / country / lbVisible.
     match /users/{uid} {

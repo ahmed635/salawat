@@ -6,16 +6,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/leaderboard_entry.dart';
 import 'auth_repository.dart';
 import 'firestore_paths.dart';
+import 'today_riyadh.dart';
 
+/// The visible leaderboard is the **daily** competition keyed by the
+/// current Asia/Riyadh date. Resets every 00:00 Riyadh because:
+///   - `incrementCount` writes into `leaderboardDaily/{todayRiyadh}/users/{uid}`
+///   - `cleanupOldData` deletes yesterday's subcollection at midnight
+///   - `todayRiyadhProvider` re-emits the new date, so the [StreamProvider]s
+///     here automatically re-subscribe to the new empty subcollection.
 class LeaderboardRepository {
   LeaderboardRepository(this._db);
   final FirebaseFirestore _db;
 
-  /// Top [limit] users by lifetime count, descending. Auto-refreshes via
-  /// Firestore snapshots — no polling.
-  Stream<List<LeaderboardEntry>> watchTop({int limit = 50}) {
+  /// Top [limit] users by today's salawat count, descending.
+  Stream<List<LeaderboardEntry>> watchTop(String today, {int limit = 50}) {
     return _db
-        .collection(FirestorePaths.leaderboardLifetime)
+        .collection(FirestorePaths.leaderboardDailyUsers(today))
         .orderBy('count', descending: true)
         .limit(limit)
         .snapshots()
@@ -24,17 +30,16 @@ class LeaderboardRepository {
             .toList(growable: false));
   }
 
-  /// Live rank for [uid]. Streams the user's own leaderboard doc, then on
-  /// each change runs a `count()` aggregation for users above them. Throttled
-  /// so a burst of taps doesn't fire many aggregation queries — at most one
-  /// recompute per [_rankRecomputeWindow].
+  /// Live rank for [uid] within today's competition. Streams the user's
+  /// own daily row, then on each change runs a `count()` aggregation
+  /// for users above them in today's subcollection.
   ///
-  /// At ~100K users this aggregation costs ~1 read per ~1000 docs above the
-  /// user, billed once per recompute. At >500K users we'd want to switch to
-  /// a tier display ("Top 1%") instead of exact rank.
-  Stream<MyRank?> watchMyRank(String uid) async* {
+  /// Throttled the same way as before — at most one recompute every
+  /// [_rankRecomputeWindow], plus a "count moved by >5" gate — so a
+  /// burst of taps doesn't fan out into many aggregation queries.
+  Stream<MyRank?> watchMyRank(String uid, String today) async* {
     final docStream = _db
-        .doc(FirestorePaths.leaderboardLifetimeUser(uid))
+        .doc(FirestorePaths.leaderboardDailyUser(today, uid))
         .snapshots();
 
     DateTime? lastFetched;
@@ -55,8 +60,6 @@ class LeaderboardRepository {
         continue;
       }
 
-      // Use the previously-fetched rank if it's recent and the count change
-      // is small — avoids a Firestore read on every tap.
       final now = DateTime.now();
       final stale = lastFetched == null ||
           now.difference(lastFetched).compareTo(_rankRecomputeWindow) > 0;
@@ -70,7 +73,7 @@ class LeaderboardRepository {
 
       try {
         final agg = await _db
-            .collection(FirestorePaths.leaderboardLifetime)
+            .collection(FirestorePaths.leaderboardDailyUsers(today))
             .where('count', isGreaterThan: count)
             .count()
             .get();
@@ -81,8 +84,6 @@ class LeaderboardRepository {
         lastFetchedCount = count;
         yield MyRank(uid: uid, rank: rank, count: count, name: name);
       } catch (_) {
-        // If the aggregation fails (offline, permission, etc.) emit best-effort
-        // with whatever we last knew.
         yield MyRank(
           uid: uid,
           rank: lastFetchedRank,
@@ -107,11 +108,22 @@ final leaderboardRepositoryProvider = Provider<LeaderboardRepository>((ref) {
 
 final leaderboardTopProvider =
     StreamProvider<List<LeaderboardEntry>>((ref) {
-  return ref.watch(leaderboardRepositoryProvider).watchTop(limit: 50);
+  // ref.watch on todayRiyadhProvider means this rebuilds at every
+  // Riyadh midnight — the leaderboard refreshes the moment the new
+  // challenge begins, no user action required.
+  final today = ref.watch(todayRiyadhProvider).valueOrNull;
+  if (today == null) return const Stream.empty();
+  return ref
+      .watch(leaderboardRepositoryProvider)
+      .watchTop(today, limit: 50);
 });
 
 final myRankProvider = StreamProvider<MyRank?>((ref) {
   final user = ref.watch(authStateProvider).valueOrNull;
   if (user == null) return Stream.value(null);
-  return ref.watch(leaderboardRepositoryProvider).watchMyRank(user.uid);
+  final today = ref.watch(todayRiyadhProvider).valueOrNull;
+  if (today == null) return Stream.value(null);
+  return ref
+      .watch(leaderboardRepositoryProvider)
+      .watchMyRank(user.uid, today);
 });
