@@ -88,15 +88,32 @@ class GlobalCountRepository {
         // Kick off with one fetch so the UI has something to show.
         await doFetch();
         timer = Timer.periodic(_refreshInterval, (_) => doFetch());
-        connSub = Connectivity().onConnectivityChanged.listen((results) {
+        connSub = Connectivity().onConnectivityChanged.listen((results) async {
           final none = results.isEmpty ||
               results.every((r) => r == ConnectivityResult.none);
           if (none) {
             emitOffline();
           } else {
-            // Connectivity restored — refresh immediately so the dot
-            // flips green and the count catches up.
-            doFetch();
+            // Connectivity restored. The OS-level event fires the moment
+            // the radio reports a link, but Firestore's internal channel
+            // can linger in offline mode for a while after a blip — so a
+            // Source.server read fired right now will just time out and
+            // fall back to cache, leaving the dot stuck on red until the
+            // next 1-minute poll (which may also be too early). Poke the
+            // SDK back online and retry with a short backoff so we
+            // recover within seconds instead of minutes.
+            try {
+              await _db.enableNetwork();
+            } catch (_) {}
+            for (final delay in const [0, 2, 6]) {
+              if (disposed) return;
+              if (delay > 0) {
+                await Future<void>.delayed(Duration(seconds: delay));
+                if (disposed) return;
+              }
+              await doFetch();
+              if (!last.isOffline) break;
+            }
           }
         });
       },

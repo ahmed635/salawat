@@ -8,8 +8,16 @@ class AuthRepository {
   /// Returns the current user, signing in anonymously if there is none.
   /// Idempotent — safe to call on every app start.
   Future<User> ensureSignedIn() async {
-    final existing = _auth.currentUser;
-    if (existing != null) return existing;
+    // [currentUser] is synchronous and can briefly return null at app
+    // startup before the SDK has finished hydrating the persisted user
+    // from disk. If we trusted that, we'd fall through to
+    // signInAnonymously() on every launch and burn a fresh UID — leaving
+    // a trail of orphan users/{uid} docs each carrying the user's
+    // displayName. authStateChanges() emits the hydrated state as its
+    // first event, so we wait on that when currentUser is null.
+    var user = _auth.currentUser;
+    user ??= await _auth.authStateChanges().first;
+    if (user != null) return user;
     final credential = await _auth.signInAnonymously();
     return credential.user!;
   }
