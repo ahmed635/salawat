@@ -10,6 +10,7 @@ import '../../data/auth_repository.dart';
 import '../../models/badge.dart';
 import '../../theme/colors.dart';
 import '../../theme/gold_mode.dart';
+import '../guide/guide_screen.dart';
 import 'widgets/badge_card.dart';
 import 'widgets/profile_header.dart';
 
@@ -64,7 +65,66 @@ class ProfileScreen extends ConsumerWidget {
               itemBuilder: (_, i) =>
                   BadgeCard(badge: badges[i], count: count),
             ),
+            const SizedBox(height: 20),
+            _GuideButton(isDark: isDark),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Reopens the one-time how-to-use guide in replay mode (it pops on finish,
+/// and doesn't touch the first-launch flag).
+class _GuideButton extends StatelessWidget {
+  const _GuideButton({required this.isDark});
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: isDark ? AppColors.slate800 : Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const GuideScreen(replay: true),
+          ),
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? AppColors.slate700 : AppColors.slate100,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.help_outline,
+                size: 22,
+                color: isDark ? AppColors.emerald400 : AppColors.emerald600,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'كيف تستخدم التطبيق',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : AppColors.slate800,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_left,
+                size: 22,
+                color: isDark ? AppColors.slate400 : AppColors.slate400,
+              ),
+            ],
+          ),
         ),
       ),
     );

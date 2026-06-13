@@ -6,11 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import 'core/daily_reset.dart';
+import 'core/guide_controller.dart';
 import 'core/theme_controller.dart';
 import 'core/user_controller.dart';
 import 'data/auth_repository.dart';
 import 'data/counter_sync.dart';
 import 'data/user_repository.dart';
+import 'features/guide/guide_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'shared/nav_shell.dart';
 import 'theme/app_theme.dart';
@@ -113,6 +115,7 @@ class _AuthGateState extends ConsumerState<_AuthGate>
         // midnight on its own schedule.
         ref.read(dailyResetProvider).start();
         final userName = ref.watch(userNameControllerProvider);
+        final guideSeen = ref.watch(guideControllerProvider);
 
         // One-shot resync for users whose displayName write was denied by
         // an earlier version of upsertProfile (it wrote disallowed fields).
@@ -122,11 +125,19 @@ class _AuthGateState extends ConsumerState<_AuthGate>
           ref.read(userRepositoryProvider).upsertProfile(displayName: userName);
         }
 
+        // Flow: name onboarding → one-time how-to-use guide → main shell.
+        final Widget screen;
+        if (userName == null) {
+          screen = const OnboardingScreen(key: ValueKey('onboarding'));
+        } else if (!guideSeen) {
+          screen = const GuideScreen(key: ValueKey('guide'));
+        } else {
+          screen = const NavShell(key: ValueKey('shell'));
+        }
+
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
-          child: userName == null
-              ? const OnboardingScreen(key: ValueKey('onboarding'))
-              : const NavShell(key: ValueKey('shell')),
+          child: screen,
         );
       },
     );

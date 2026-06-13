@@ -17,6 +17,7 @@ class Prefs {
   static const _kMilestoneFiredOnDay = 'sallou_milestone_fired_on_utc_day';
   static const _kCommittedDays = 'sallou_committed_days';
   static const _kLastActiveUtcDay = 'sallou_last_active_utc_day';
+  static const _kGuideSeen = 'sallou_guide_seen';
 
   final SharedPreferences _prefs;
 
@@ -104,6 +105,12 @@ class Prefs {
   String? get lastActiveUtcDay => _prefs.getString(_kLastActiveUtcDay);
   Future<void> setLastActiveUtcDay(String value) =>
       _prefs.setString(_kLastActiveUtcDay, value);
+
+  /// Whether the one-time how-to-use guide has been shown. Gates the guide
+  /// that runs once after name onboarding; the user can still replay it from
+  /// the profile screen afterwards.
+  bool get guideSeen => _prefs.getBool(_kGuideSeen) ?? false;
+  Future<void> setGuideSeen(bool value) => _prefs.setBool(_kGuideSeen, value);
 }
 
 /// Overridden in main() with the loaded Prefs instance.
