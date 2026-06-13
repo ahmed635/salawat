@@ -18,7 +18,9 @@
       "Bash(git commit *)",
       "Bash(git pull *)",
       "Bash(git add *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "PowerShell(flutter analyze *)",
+      "Bash(grep -v \"data:\\\\|comment\\\\|onTap\\\\|//\")"
     ]
   }
 }
