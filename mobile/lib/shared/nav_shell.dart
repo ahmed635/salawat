@@ -9,6 +9,7 @@ import '../core/user_controller.dart';
 import '../features/home/home_screen.dart';
 import '../features/leaderboard/leaderboard_screen.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/supplications/supplications_screen.dart';
 import '../theme/app_theme.dart';
 import '../theme/gold_mode.dart';
 
@@ -24,6 +25,7 @@ class _NavShellState extends ConsumerState<NavShell> {
 
   static const _screens = <Widget>[
     HomeScreen(),
+    SupplicationsScreen(),
     LeaderboardScreen(),
     ProfileScreen(),
   ];
@@ -50,6 +52,11 @@ class _NavShellState extends ConsumerState<NavShell> {
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
             label: 'الرئيسية',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.menu_book_outlined),
+            selectedIcon: Icon(Icons.menu_book),
+            label: 'صيغ الصلاة',
           ),
           NavigationDestination(
             icon: Icon(Icons.emoji_events_outlined),
