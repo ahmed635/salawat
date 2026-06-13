@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -14,6 +16,7 @@ import 'data/counter_sync.dart';
 import 'data/user_repository.dart';
 import 'features/guide/guide_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
+import 'features/splash/splash_screen.dart';
 import 'shared/nav_shell.dart';
 import 'theme/app_theme.dart';
 import 'theme/gold_mode.dart';
@@ -62,27 +65,31 @@ class _AuthGate extends ConsumerStatefulWidget {
 class _AuthGateState extends ConsumerState<_AuthGate>
     with WidgetsBindingObserver {
   bool _profileResynced = false;
-  bool _splashRemoved = false;
 
-  /// Drops the native splash exactly once, after the first frame is laid
-  /// out. Called from both the data and error branches so a missing
-  /// network can't strand the user on a permanent emerald screen.
-  void _removeSplashOnce() {
-    if (_splashRemoved) return;
-    _splashRemoved = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      FlutterNativeSplash.remove();
-    });
-  }
+  /// Minimum time the animated [SplashScreen] stays up, so its entrance
+  /// animation always plays even when sign-in resolves instantly.
+  static const _minSplash = Duration(milliseconds: 2500);
+  bool _minSplashElapsed = false;
+  Timer? _minSplashTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Hand off from the native splash to our animated Flutter splash as soon
+    // as the first frame is painted (that frame already shows SplashScreen),
+    // so the user never sees a gap.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FlutterNativeSplash.remove();
+    });
+    _minSplashTimer = Timer(_minSplash, () {
+      if (mounted) setState(() => _minSplashElapsed = true);
+    });
   }
 
   @override
   void dispose() {
+    _minSplashTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -100,62 +107,54 @@ class _AuthGateState extends ConsumerState<_AuthGate>
   Widget build(BuildContext context) {
     final auth = ref.watch(ensureSignedInProvider);
 
-    return auth.when(
-      loading: () => const _SignInSplash(),
-      error: (e, _) {
-        _removeSplashOnce();
-        return _AuthErrorScreen(error: e);
-      },
-      data: (_) {
-        _removeSplashOnce();
-        // Now safe to start the periodic flush.
-        ref.read(counterSyncProvider).start();
-        // Reset the local "صلاة اليوم" at the user's local midnight.
-        // The server resets the shared global counter at Asia/Riyadh
-        // midnight on its own schedule.
-        ref.read(dailyResetProvider).start();
-        final userName = ref.watch(userNameControllerProvider);
-        final guideSeen = ref.watch(guideControllerProvider);
+    // Keep the animated splash up until BOTH the minimum time has elapsed and
+    // sign-in has resolved; only then route to the real screen.
+    final Widget screen;
+    if (!_minSplashElapsed) {
+      screen = const SplashScreen(key: ValueKey('splash'));
+    } else {
+      screen = auth.when(
+        loading: () => const SplashScreen(key: ValueKey('splash')),
+        error: (e, _) => _AuthErrorScreen(key: const ValueKey('error'), error: e),
+        data: (_) {
+          // Now safe to start the periodic flush.
+          ref.read(counterSyncProvider).start();
+          // Reset the local "صلاة اليوم" at the user's local midnight.
+          // The server resets the shared global counter at Asia/Riyadh
+          // midnight on its own schedule.
+          ref.read(dailyResetProvider).start();
+          final userName = ref.watch(userNameControllerProvider);
+          final guideSeen = ref.watch(guideControllerProvider);
 
-        // One-shot resync for users whose displayName write was denied by
-        // an earlier version of upsertProfile (it wrote disallowed fields).
-        // Idempotent merge — no-op once users/{uid}.displayName matches.
-        if (!_profileResynced && userName != null && userName.isNotEmpty) {
-          _profileResynced = true;
-          ref.read(userRepositoryProvider).upsertProfile(displayName: userName);
-        }
+          // One-shot resync for users whose displayName write was denied by
+          // an earlier version of upsertProfile (it wrote disallowed fields).
+          // Idempotent merge — no-op once users/{uid}.displayName matches.
+          if (!_profileResynced && userName != null && userName.isNotEmpty) {
+            _profileResynced = true;
+            ref
+                .read(userRepositoryProvider)
+                .upsertProfile(displayName: userName);
+          }
 
-        // Flow: name onboarding → one-time how-to-use guide → main shell.
-        final Widget screen;
-        if (userName == null) {
-          screen = const OnboardingScreen(key: ValueKey('onboarding'));
-        } else if (!guideSeen) {
-          screen = const GuideScreen(key: ValueKey('guide'));
-        } else {
-          screen = const NavShell(key: ValueKey('shell'));
-        }
+          // Flow: name onboarding → one-time how-to-use guide → main shell.
+          if (userName == null) {
+            return const OnboardingScreen(key: ValueKey('onboarding'));
+          }
+          if (!guideSeen) return const GuideScreen(key: ValueKey('guide'));
+          return const NavShell(key: ValueKey('shell'));
+        },
+      );
+    }
 
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: screen,
-        );
-      },
-    );
-  }
-}
-
-class _SignInSplash extends StatelessWidget {
-  const _SignInSplash();
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      child: screen,
     );
   }
 }
 
 class _AuthErrorScreen extends StatelessWidget {
-  const _AuthErrorScreen({required this.error});
+  const _AuthErrorScreen({super.key, required this.error});
   final Object error;
   @override
   Widget build(BuildContext context) {
