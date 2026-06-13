@@ -55,7 +55,7 @@ class SupplicationCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             supplication.arabic,
-            textAlign: TextAlign.right,
+            textAlign: TextAlign.end,
             style: TextStyle(
               fontSize: 18,
               height: 2.2,
@@ -217,12 +217,13 @@ class _ActionButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(999),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          // Min ~40dp tall tap target.
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 17, color: color),
-              const SizedBox(width: 5),
+              Icon(icon, size: 18, color: color),
+              const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(

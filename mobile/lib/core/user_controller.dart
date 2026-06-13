@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/user_repository.dart';
@@ -16,10 +17,18 @@ class UserNameController extends Notifier<String?> {
     await ref.read(prefsProvider).setUserName(trimmed);
     state = trimmed;
 
-    // Await the Firestore write so displayName lands before any tap can
-    // sync — otherwise the Cloud Function would stamp "Anonymous" into the
-    // leaderboard. Offline writes are queued by the SDK and replay later.
-    await ref.read(userRepositoryProvider).upsertProfile(displayName: trimmed);
+    // Push the displayName to Firestore so the leaderboard shows it instead
+    // of "Anonymous". Offline writes are queued by the SDK and replay later,
+    // so the only failures that reach here are permission/App-Check errors —
+    // swallow them so onboarding still completes; `_AuthGate`'s one-shot
+    // resync retries on the next launch.
+    try {
+      await ref
+          .read(userRepositoryProvider)
+          .upsertProfile(displayName: trimmed);
+    } catch (e) {
+      debugPrint('upsertProfile failed during onboarding: $e');
+    }
   }
 }
 

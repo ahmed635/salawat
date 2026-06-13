@@ -41,11 +41,22 @@ class LeaderboardScreen extends ConsumerWidget {
                 _Card(
                   isDark: isDark,
                   child: topAsync.when(
-                    loading: () => const _EmptyState(text: 'جاري تحميل البيانات...'),
-                    error: (e, _) => _EmptyState(text: 'تعذر تحميل البيانات.\n$e'),
+                    loading: () => const _LoadingState(),
+                    // Don't surface the raw exception to an Arabic-first user;
+                    // log it for debugging and show a friendly message.
+                    error: (e, _) {
+                      debugPrint('leaderboard load failed: $e');
+                      return const _EmptyState(
+                        icon: Icons.cloud_off,
+                        text: 'تعذّر تحميل لوحة الشرف.\nتحقّق من اتصالك وحاول مجددًا.',
+                      );
+                    },
                     data: (entries) {
                       if (entries.isEmpty) {
-                        return const _EmptyState(text: 'كن أول من يبدأ. صَلِّ الآن.');
+                        return const _EmptyState(
+                          icon: Icons.emoji_events_outlined,
+                          text: 'كن أول من يبدأ. صَلِّ الآن.',
+                        );
                       }
                       return Column(
                         children: [
@@ -241,22 +252,64 @@ class _Card extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.text});
+  const _EmptyState({required this.text, this.icon});
   final String text;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(32),
       child: Center(
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppColors.slate400,
-            fontSize: 13,
-            height: 1.5,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 40, color: AppColors.slate300),
+              const SizedBox(height: 12),
+            ],
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.slate400,
+                fontSize: 13,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Spinner + label shown while the leaderboard is loading.
+class _LoadingState extends StatelessWidget {
+  const _LoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'جاري تحميل البيانات...',
+              style: TextStyle(color: AppColors.slate400, fontSize: 13),
+            ),
+          ],
         ),
       ),
     );

@@ -21,12 +21,13 @@ class CounterController extends Notifier<int> {
     state = next;
     await ref.read(prefsProvider).setLocalCount(next);
 
+    final beforeLifetime = ref.read(lifetimeCounterProvider);
     await ref.read(lifetimeCounterProvider.notifier).increment();
-    // Detect the first tap of a new UTC day and bump the per-user
+    // Detect the first tap of a new local day and bump the per-user
     // "committed days" counter (offline-safe, Prefs-backed).
     await ref.read(committedDaysProvider.notifier).recordActiveToday();
-    final lifetime = ref.read(lifetimeCounterProvider);
-    return badgeUnlockedAt(lifetime);
+    final afterLifetime = ref.read(lifetimeCounterProvider);
+    return badgeUnlockedAt(beforeLifetime, afterLifetime);
   }
 
   /// Zero the daily counter. Called by [DailyResetController] at UTC midnight.

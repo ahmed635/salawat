@@ -42,7 +42,13 @@ class RankRow extends StatelessWidget {
           ),
         ),
       ),
-      child: Padding(
+      child: Semantics(
+        container: true,
+        excludeSemantics: true,
+        label: 'الترتيب ${formatArabic(position)}: '
+            '${entry.name.isEmpty ? 'بدون اسم' : entry.name}، '
+            '${formatArabic(entry.count)} صلاة',
+        child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
@@ -67,7 +73,7 @@ class RankRow extends StatelessWidget {
                                   : (isDark
                                       ? AppColors.slate200
                                       : AppColors.slate800))
-                              .withValues(alpha: 0.55),
+                              .withValues(alpha: 0.7),
                         ),
                       ),
                     ],
@@ -98,6 +104,7 @@ class RankRow extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

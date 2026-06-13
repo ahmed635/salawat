@@ -31,8 +31,10 @@ class DailyResetController {
   final Prefs _prefs;
   Timer? _timer;
 
-  /// Runs an immediate check (in case the app launched on a new UTC day
-  /// after sleeping across midnight) and arms a timer for the next 00:00 UTC.
+  /// Runs an immediate check (in case the app launched on a new local day
+  /// after sleeping across midnight) and arms a timer for the next local
+  /// 00:00. NOTE: this is device-local time, not UTC — the legacy Prefs key
+  /// names (`lastResetUtcDay` etc.) say "Utc" but store the local day.
   Future<void> start() async {
     await _checkAndReset();
     _scheduleNext();

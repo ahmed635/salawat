@@ -10,6 +10,11 @@ import '../data/global_count_repository.dart';
 const goldModeThreshold = 1000000;
 
 final goldModeProvider = Provider<bool>((ref) {
-  final snap = ref.watch(globalCountStreamProvider).valueOrNull;
-  return (snap?.count ?? 0) > goldModeThreshold;
+  // select() so dependents (whole-app theme, tap button, header) only rebuild
+  // when the gold threshold is actually crossed — not on every count tick.
+  return ref.watch(
+    globalCountStreamProvider.select(
+      (async) => (async.valueOrNull?.count ?? 0) > goldModeThreshold,
+    ),
+  );
 });

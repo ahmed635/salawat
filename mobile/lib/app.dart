@@ -129,11 +129,17 @@ class _AuthGateState extends ConsumerState<_AuthGate>
           // One-shot resync for users whose displayName write was denied by
           // an earlier version of upsertProfile (it wrote disallowed fields).
           // Idempotent merge — no-op once users/{uid}.displayName matches.
+          // Deferred off the build frame and error-swallowed: it's best-effort
+          // and must never throw an unhandled async error or block the UI.
           if (!_profileResynced && userName != null && userName.isNotEmpty) {
             _profileResynced = true;
-            ref
-                .read(userRepositoryProvider)
-                .upsertProfile(displayName: userName);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ref
+                  .read(userRepositoryProvider)
+                  .upsertProfile(displayName: userName)
+                  .catchError((Object e) =>
+                      debugPrint('profile resync failed: $e'));
+            });
           }
 
           // Flow: name onboarding → one-time how-to-use guide → main shell.

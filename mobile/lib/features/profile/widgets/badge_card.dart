@@ -24,7 +24,11 @@ class BadgeCard extends StatelessWidget {
     final isDark = brightness == Brightness.dark;
     final unlocked = _unlocked;
 
-    return Container(
+    return Semantics(
+      label: '${badge.title}، ${unlocked ? 'وسام مفتوح' : 'مغلق'}، '
+          'يفتح عند ${formatArabic(badge.requirement)} صلاة',
+      excludeSemantics: true,
+      child: Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: unlocked
@@ -101,6 +105,7 @@ class BadgeCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
       ),
     );
   }

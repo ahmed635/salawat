@@ -50,7 +50,7 @@ If you change batching, deltas, or idempotency, update `../functions/src/increme
 
 ### Leaderboard rank — throttled aggregation
 
-`LeaderboardRepository.watchMyRank` (`lib/data/leaderboard_repository.dart`) uses a Firestore `count()` aggregation to find the user's rank. It's intentionally throttled (`_rankRecomputeWindow = 5s`, plus a "count moved by >5" gate) so a burst of taps doesn't fan out into many aggregation queries. Don't remove the throttle — at scale this becomes a real cost. The doc comment notes the >500K-user point at which we'd switch to a tier display.
+`LeaderboardRepository.watchMyRank` (`lib/data/leaderboard_repository.dart`) uses a Firestore `count()` aggregation to find the user's rank. It's intentionally throttled (`_rankRecomputeWindow = 30s`, plus a "count moved by >5" gate) so a burst of taps doesn't fan out into many aggregation queries. Don't remove the throttle — at scale this becomes a real cost. The doc comment notes the >500K-user point at which we'd switch to a tier display.
 
 ### Global counter — sharded
 
@@ -73,7 +73,7 @@ Anonymous Firebase Auth, kicked off by `ensureSignedInProvider` at app start. Th
 
 ### Badges
 
-`lib/models/badge.dart` defines the 8-rung ladder. `badgeUnlockedAt(count)` returns a badge **only on the exact tap that crosses the threshold** (used to fire celebration UX). `nextBadgeFor` and `previousBadgeRequirement` drive progress UI. The list is required to be sorted ascending by `requirement` — a test enforces this.
+`lib/models/badge.dart` defines the 11-rung ladder. `badgeUnlockedAt(before, after)` returns the highest badge whose `requirement` falls in `(before, after]` — i.e. the rung **crossed** by a tap (used to fire celebration UX), which is robust to non-incremental jumps like the lifetime-count migration. `nextBadgeFor` and `previousBadgeRequirement` drive progress UI. The list is required to be sorted ascending by `requirement` — a test enforces this.
 
 ### Feature folders
 

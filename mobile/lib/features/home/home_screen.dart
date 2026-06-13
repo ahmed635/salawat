@@ -7,7 +7,6 @@ import '../../core/audio.dart';
 import '../../core/counter_controller.dart';
 import '../../core/haptics.dart';
 import '../../core/lifetime_counter_controller.dart';
-import '../../data/global_count_repository.dart';
 import '../../models/badge.dart';
 import '../../theme/colors.dart';
 import 'widgets/global_goal_card.dart';
@@ -29,12 +28,6 @@ class HomeScreen extends ConsumerWidget {
     // for life once earned, mirroring how the profile screen and the
     // badge-unlock celebration both already key off lifetime.
     final lifetimeCount = ref.watch(lifetimeCounterProvider);
-    // Live community total (sum of 10 sharded docs). Shows 0 until Firestore
-    // delivers its first snapshot. `isOffline` is true when the latest
-    // snapshot was served from cache — i.e. we've lost the backend.
-    final globalSnapshot = ref.watch(globalCountStreamProvider).valueOrNull;
-    final globalCount = globalSnapshot?.count ?? 0;
-    final isOffline = globalSnapshot?.isOffline ?? false;
 
     return SafeArea(
       top: false,
@@ -42,11 +35,9 @@ class HomeScreen extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Column(
           children: [
-            GlobalGoalCard(
-              current: globalCount,
-              goal: _dailyGlobalGoal,
-              isOffline: isOffline,
-            ),
+            // const + self-watching: a global-count poll rebuilds the card
+            // alone, and a tap (which rebuilds HomeScreen) doesn't touch it.
+            const GlobalGoalCard(goal: _dailyGlobalGoal),
             const SizedBox(height: 24),
             TapButton(
               count: count,

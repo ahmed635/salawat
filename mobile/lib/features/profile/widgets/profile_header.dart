@@ -24,8 +24,8 @@ class ProfileHeader extends StatelessWidget {
   /// "gold" one to match the rest of the celebration state.
   final bool goldMode;
 
-  /// Number of distinct UTC days the user has been active. When null the
-  /// stat pill is hidden (keeps the widget usable from tests/screens that
+  /// Number of distinct device-local days the user has been active. When null
+  /// the stat pill is hidden (keeps the widget usable from tests/screens that
   /// don't have a provider scope).
   final int? committedDays;
 
@@ -97,7 +97,7 @@ class ProfileHeader extends StatelessWidget {
                       TextSpan(
                         text: tag,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
+                          color: Colors.white.withValues(alpha: 0.85),
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),

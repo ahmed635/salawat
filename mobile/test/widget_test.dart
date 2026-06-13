@@ -1,5 +1,7 @@
 import 'package:app/core/arabic_numbers.dart';
+import 'package:app/core/prefs.dart';
 import 'package:app/core/user_tag.dart';
+import 'package:app/data/today_riyadh.dart';
 import 'package:app/features/onboarding/onboarding_screen.dart';
 import 'package:app/features/profile/widgets/badge_card.dart';
 import 'package:app/features/profile/widgets/profile_header.dart';
@@ -10,8 +12,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('Badges', () {
     test('are sorted in ascending requirement order', () {
       for (var i = 1; i < model.badges.length; i++) {
@@ -20,11 +25,15 @@ void main() {
       }
     });
 
-    test('badgeUnlockedAt returns the badge whose requirement equals count', () {
-      expect(badgeUnlockedAt(10)?.title, 'مبتدئ');
-      expect(badgeUnlockedAt(100000)?.title, 'الشفاعة المرجوة');
-      expect(badgeUnlockedAt(1000000)?.title, 'مليون صلاة');
-      expect(badgeUnlockedAt(11), isNull);
+    test('badgeUnlockedAt fires when a tap crosses a requirement', () {
+      expect(badgeUnlockedAt(9, 10)?.title, 'مبتدئ');
+      expect(badgeUnlockedAt(99999, 100000)?.title, 'الشفاعة المرجوة');
+      expect(badgeUnlockedAt(999999, 1000000)?.title, 'مليون صلاة');
+      // No rung between 10 and 11 → nothing fires.
+      expect(badgeUnlockedAt(10, 11), isNull);
+      // Robust to a multi-rung jump (e.g. the lifetime migration): returns the
+      // highest rung crossed, not null.
+      expect(badgeUnlockedAt(0, 1000000)?.title, 'مليون صلاة');
     });
 
     test('nextBadgeFor moves through the ladder correctly', () {
@@ -39,6 +48,47 @@ void main() {
       expect(previousBadgeRequirement(5), 0);
       expect(previousBadgeRequirement(10), 10);
       expect(previousBadgeRequirement(150), 100);
+    });
+  });
+
+  group('Riyadh timezone (UTC+3)', () {
+    test('date string rolls at Riyadh midnight, not UTC midnight', () {
+      // 20:00 UTC = 23:00 Riyadh — still the same Riyadh day.
+      expect(riyadhDateStringAt(DateTime.utc(2024, 1, 1, 20)), '2024-01-01');
+      // 21:30 UTC = 00:30 Riyadh next day — already rolled over.
+      expect(riyadhDateStringAt(DateTime.utc(2024, 1, 1, 21, 30)), '2024-01-02');
+      // Month/year boundary.
+      expect(riyadhDateStringAt(DateTime.utc(2024, 12, 31, 21)), '2025-01-01');
+    });
+
+    test('delay to next Riyadh midnight is correct', () {
+      // 21:00 UTC == 00:00 Riyadh, so the next reset is exactly 24h away.
+      expect(
+        delayToNextRiyadhMidnightAt(DateTime.utc(2024, 1, 1, 21)),
+        const Duration(hours: 24),
+      );
+      // One hour before reset.
+      expect(
+        delayToNextRiyadhMidnightAt(DateTime.utc(2024, 1, 1, 20)),
+        const Duration(hours: 1),
+      );
+    });
+  });
+
+  group('Prefs migration', () {
+    test('seeds lifetimeCount from a pre-migration localCount', () async {
+      SharedPreferences.setMockInitialValues({'sallou_local_count': 4200});
+      final prefs = await Prefs.load();
+      expect(prefs.lifetimeCount, 4200);
+    });
+
+    test('does not clobber an existing lifetimeCount', () async {
+      SharedPreferences.setMockInitialValues({
+        'sallou_local_count': 50,
+        'sallou_lifetime_count': 9000,
+      });
+      final prefs = await Prefs.load();
+      expect(prefs.lifetimeCount, 9000);
     });
   });
 

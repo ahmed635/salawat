@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -107,10 +108,15 @@ class CounterSync {
         await _prefs.setPendingReqId(null);
         remaining -= chunk;
       }
-    } catch (_) {
-      // Keep pendingReqId + lastSyncedCount as-is so we retry next tick.
-      // FirebaseFunctionsException details are intentionally swallowed; the
-      // server's idempotency table handles double-deliveries.
+    } on FirebaseFunctionsException catch (e) {
+      // Keep pendingReqId + lastSyncedCount as-is so we retry next tick; the
+      // server's idempotency table handles double-deliveries. We log instead
+      // of silently swallowing so a *permanent* failure (e.g. App Check or a
+      // bad-argument rejection) is visible rather than looping invisibly
+      // every 2.5s forever.
+      debugPrint('incrementCount failed [${e.code}]: ${e.message}');
+    } catch (e) {
+      debugPrint('incrementCount failed: $e');
     }
   }
 }

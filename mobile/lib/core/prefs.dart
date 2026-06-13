@@ -14,7 +14,6 @@ class Prefs {
   static const _kPendingReqId = 'sallou_pending_req_id';
   static const _kLifetimeCount = 'sallou_lifetime_count';
   static const _kLastResetUtcDay = 'sallou_last_reset_utc_day';
-  static const _kMilestoneFiredOnDay = 'sallou_milestone_fired_on_utc_day';
   static const _kCommittedDays = 'sallou_committed_days';
   static const _kLastActiveUtcDay = 'sallou_last_active_utc_day';
   static const _kGuideSeen = 'sallou_guide_seen';
@@ -78,30 +77,23 @@ class Prefs {
   Future<void> setLifetimeCount(int value) =>
       _prefs.setInt(_kLifetimeCount, value);
 
-  /// UTC date string (yyyy-MM-dd) of the most recent local daily reset.
+  /// Device-local date string (yyyy-MM-dd) of the most recent daily reset.
   /// Null on a fresh install — first launch stamps today's date and starts
-  /// the daily cycle.
+  /// the daily cycle. (Key name says "utc" for legacy reasons; value is the
+  /// local day.)
   String? get lastResetUtcDay => _prefs.getString(_kLastResetUtcDay);
   Future<void> setLastResetUtcDay(String value) =>
       _prefs.setString(_kLastResetUtcDay, value);
 
-  /// Local date (yyyy-MM-dd, device timezone) on which we last fired the
-  /// "2M challenge has begun" notification. Re-fires on the next local
-  /// day so the user sees one celebration per cycle.
-  String? get milestoneFiredOnUtcDay =>
-      _prefs.getString(_kMilestoneFiredOnDay);
-  Future<void> setMilestoneFiredOnUtcDay(String value) =>
-      _prefs.setString(_kMilestoneFiredOnDay, value);
-
-  /// Number of distinct UTC days on which the user has sent at least one
-  /// salawat. Incremented client-side on the first tap of each new UTC day,
-  /// so it works fully offline.
+  /// Number of distinct device-local days on which the user has sent at least
+  /// one salawat. Incremented client-side on the first tap of each new local
+  /// day, so it works fully offline.
   int get committedDays => _prefs.getInt(_kCommittedDays) ?? 0;
   Future<void> setCommittedDays(int value) =>
       _prefs.setInt(_kCommittedDays, value);
 
-  /// UTC date (yyyy-MM-dd) of the user's most recent tap. Used to detect
-  /// the "first tap of a new day" transition that bumps [committedDays].
+  /// Device-local date (yyyy-MM-dd) of the user's most recent tap. Used to
+  /// detect the "first tap of a new day" transition that bumps [committedDays].
   String? get lastActiveUtcDay => _prefs.getString(_kLastActiveUtcDay);
   Future<void> setLastActiveUtcDay(String value) =>
       _prefs.setString(_kLastActiveUtcDay, value);

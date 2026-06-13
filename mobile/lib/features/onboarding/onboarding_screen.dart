@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/user_controller.dart';
@@ -144,6 +145,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       textInputAction: TextInputAction.done,
       onChanged: (v) => setState(() => _value = v),
       onFieldSubmitted: (_) => _submit(),
+      // Cap length and strip line breaks/tabs so a name can't break the
+      // leaderboard layout or smuggle control chars into displayName. The
+      // server's firestore.rules must enforce the same cap as the real guard.
+      maxLength: 30,
+      buildCounter: (_, {required currentLength, required isFocused, maxLength}) =>
+          null,
+      inputFormatters: [
+        FilteringTextInputFormatter.deny(RegExp(r'[\n\r\t]')),
+      ],
       // Show validation errors as soon as the user starts typing,
       // rather than only after the first submit attempt.
       autovalidateMode: AutovalidateMode.onUserInteraction,

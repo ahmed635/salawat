@@ -127,12 +127,20 @@ const badges = <Badge>[
   ),
 ];
 
-/// Badge that unlocks at exactly [count], or null.
-Badge? badgeUnlockedAt(int count) {
+/// The highest badge whose requirement is *crossed* by moving from [before]
+/// to [after] — i.e. requirement in `(before, after]` — or null if none.
+///
+/// Detecting a crossing rather than exact equality means a non-incremental
+/// jump (the lifetime-count migration in [Prefs.load], or any future bulk
+/// update) still fires the celebration for the rung(s) passed, instead of
+/// silently skipping it when the count never lands exactly on a threshold.
+Badge? badgeUnlockedAt(int before, int after) {
+  Badge? crossed;
   for (final b in badges) {
-    if (b.requirement == count) return b;
+    // badges are sorted ascending, so the last match is the highest crossed.
+    if (b.requirement > before && b.requirement <= after) crossed = b;
   }
-  return null;
+  return crossed;
 }
 
 /// Next badge above [count], or the last badge if all are unlocked.

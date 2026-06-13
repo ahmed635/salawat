@@ -16,7 +16,12 @@ class AuthRepository {
     // displayName. authStateChanges() emits the hydrated state as its
     // first event, so we wait on that when currentUser is null.
     var user = _auth.currentUser;
-    user ??= await _auth.authStateChanges().first;
+    // Wait for the hydrated state, but don't hang forever if the SDK never
+    // emits (rare init failure) — fall through to a fresh anonymous sign-in.
+    user ??= await _auth
+        .authStateChanges()
+        .first
+        .timeout(const Duration(seconds: 8), onTimeout: () => null);
     if (user != null) return user;
     final credential = await _auth.signInAnonymously();
     return credential.user!;

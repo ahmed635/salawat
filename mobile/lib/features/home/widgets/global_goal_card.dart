@@ -4,28 +4,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/arabic_numbers.dart';
+import '../../../data/global_count_repository.dart';
 import '../../../theme/colors.dart';
 import '../../../theme/gold_mode.dart';
 
 class GlobalGoalCard extends ConsumerWidget {
-  const GlobalGoalCard({
-    super.key,
-    required this.current,
-    required this.goal,
-    this.isOffline = false,
-  });
+  const GlobalGoalCard({super.key, required this.goal});
 
-  final int current;
   final int goal;
-
-  /// When true, the live indicator turns red to signal that the global count
-  /// is being served from cache (no connection to the backend).
-  final bool isOffline;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final goldMode = ref.watch(goldModeProvider);
+    // This card owns the global-count subscription so a new snapshot (polled
+    // ~every 60s) rebuilds only this card — not the whole HomeScreen (which
+    // would needlessly rebuild the TapButton and its animations).
+    final snapshot = ref.watch(globalCountStreamProvider).valueOrNull;
+    final current = snapshot?.count ?? 0;
+    final isOffline = snapshot?.isOffline ?? false;
     final progress = (current / goal).clamp(0.0, 1.0);
 
     return Container(
@@ -200,21 +197,41 @@ class _ChallengeCountdownState extends State<_ChallengeCountdown> {
   // Asia/Riyadh is fixed UTC+3 — no DST, no transition headaches.
   static const _resetTzOffset = Duration(hours: 3);
 
-  late Timer _ticker;
+  Timer? _ticker;
   Duration _remaining = Duration.zero;
 
   @override
   void initState() {
     super.initState();
     _recompute();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // A Timer isn't a Ticker, so TickerMode won't pause it on its own. Mirror
+    // the tab's TickerMode: tick only while this screen is the visible tab.
+    if (TickerMode.of(context)) {
+      _startTicker();
+    } else {
+      _stopTicker();
+    }
+  }
+
+  void _startTicker() {
+    _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(_recompute);
     });
   }
 
+  void _stopTicker() {
+    _ticker?.cancel();
+    _ticker = null;
+  }
+
   @override
   void dispose() {
-    _ticker.cancel();
+    _stopTicker();
     super.dispose();
   }
 

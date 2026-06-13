@@ -35,6 +35,9 @@ class _TapButtonState extends ConsumerState<TapButton>
 
   final List<_Ripple> _ripples = [];
 
+  // Drives the tactile press-in scale on the main circle.
+  bool _pressed = false;
+
   @override
   void dispose() {
     _ringSlow.dispose();
@@ -71,15 +74,17 @@ class _TapButtonState extends ConsumerState<TapButton>
             : const [AppColors.emerald400, AppColors.teal600]);
     final shadowColor =
         goldMode ? AppColors.amber500 : AppColors.emerald500;
+    // In dark mode the old slate800 rings were near-invisible on the slate900
+    // background — use the brand color so the decorative rings actually read.
     final ringSlowColor = goldMode
-        ? (isDark ? AppColors.slate800 : const Color(0xFFFEF3C7))
-        : (isDark ? AppColors.slate800 : const Color(0xFFD1FAE5));
+        ? (isDark ? AppColors.amber800 : const Color(0xFFFEF3C7))
+        : (isDark ? AppColors.emerald800 : const Color(0xFFD1FAE5));
     final ringFastColor = goldMode
         ? (isDark
-            ? AppColors.slate800.withValues(alpha: 0.5)
+            ? AppColors.amber800.withValues(alpha: 0.6)
             : const Color(0xFFFDE68A))
         : (isDark
-            ? AppColors.slate800.withValues(alpha: 0.5)
+            ? AppColors.teal800.withValues(alpha: 0.6)
             : const Color(0xFFCCFBF1));
     return SizedBox(
       width: 320,
@@ -99,13 +104,20 @@ class _TapButtonState extends ConsumerState<TapButton>
             color: ringFastColor,
             strokeWidth: 1,
           ),
-          GestureDetector(
+          Semantics(
+            button: true,
+            label: 'سجّل صلاة على النبي ﷺ. صلاة اليوم: ${formatArabic(widget.count)}',
+            excludeSemantics: true,
+            child: GestureDetector(
             onTapDown: (details) {
+              setState(() => _pressed = true);
               _spawnRipple(details.localPosition);
               widget.onTap(details.localPosition);
             },
+            onTapUp: (_) => setState(() => _pressed = false),
+            onTapCancel: () => setState(() => _pressed = false),
             child: AnimatedScale(
-              scale: 1.0,
+              scale: _pressed ? 0.94 : 1.0,
               duration: const Duration(milliseconds: 100),
               child: Container(
                 width: 256,
@@ -212,6 +224,7 @@ class _TapButtonState extends ConsumerState<TapButton>
                 ),
               ),
             ),
+          ),
           ),
         ],
       ),
