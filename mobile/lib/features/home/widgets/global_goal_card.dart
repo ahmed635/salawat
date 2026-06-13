@@ -197,41 +197,21 @@ class _ChallengeCountdownState extends State<_ChallengeCountdown> {
   // Asia/Riyadh is fixed UTC+3 — no DST, no transition headaches.
   static const _resetTzOffset = Duration(hours: 3);
 
-  Timer? _ticker;
+  late Timer _ticker;
   Duration _remaining = Duration.zero;
 
   @override
   void initState() {
     super.initState();
     _recompute();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // A Timer isn't a Ticker, so TickerMode won't pause it on its own. Mirror
-    // the tab's TickerMode: tick only while this screen is the visible tab.
-    if (TickerMode.of(context)) {
-      _startTicker();
-    } else {
-      _stopTicker();
-    }
-  }
-
-  void _startTicker() {
-    _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) {
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(_recompute);
     });
   }
 
-  void _stopTicker() {
-    _ticker?.cancel();
-    _ticker = null;
-  }
-
   @override
   void dispose() {
-    _stopTicker();
+    _ticker.cancel();
     super.dispose();
   }
 

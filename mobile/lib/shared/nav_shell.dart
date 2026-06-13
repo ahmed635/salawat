@@ -40,17 +40,10 @@ class _NavShellState extends ConsumerState<NavShell> {
         children: [
           _Header(isDark: isDark, brightness: brightness),
           Expanded(
-            // IndexedStack keeps every tab alive (preserved scroll/state), but
-            // Offstage does NOT pause tickers — so without this each hidden
-            // screen's animations (rotating rings, ping dot, countdown) would
-            // keep burning frames. TickerMode mutes the non-selected subtrees.
-            child: IndexedStack(
-              index: _index,
-              children: [
-                for (var i = 0; i < _screens.length; i++)
-                  TickerMode(enabled: _index == i, child: _screens[i]),
-              ],
-            ),
+            // IndexedStack keeps every tab alive so scroll position and live
+            // widgets (the global-goal countdown, leaderboard) keep updating
+            // while you're on another tab.
+            child: IndexedStack(index: _index, children: _screens),
           ),
         ],
       ),
