@@ -18,9 +18,13 @@ pluginManagement {
 
 plugins {
     id "dev.flutter.flutter-plugin-loader" version "1.0.0"
-    id "com.android.application" version "8.2.2" apply false
+    // AGP >= 8.5.1 is what makes native libraries land on 16 KB boundaries
+    // inside the APK zip. Google Play rejects apps targeting API 35+ that
+    // page-align .so files at 4 KB. 8.6.0 is also the first AGP that
+    // officially supports compileSdk 35.
+    id "com.android.application" version "8.6.0" apply false
     // START: FlutterFire Configuration
-    id "com.google.gms.google-services" version "4.3.15" apply false
+    id "com.google.gms.google-services" version "4.4.2" apply false
     // END: FlutterFire Configuration
     id "org.jetbrains.kotlin.android" version "1.8.22" apply false
 }
