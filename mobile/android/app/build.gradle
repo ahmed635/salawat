@@ -66,6 +66,16 @@ android {
             // Use the upload key when key.properties is present (release builds),
             // otherwise fall back to debug keys so `flutter run --release` still works.
             signingConfig = keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
+
+            ndk {
+                // Asks AGP to bundle native debug symbols for Play Console. Verified
+                // to emit NOTHING today: Flutter strips libapp.so during AOT and ships
+                // a pre-stripped libflutter.so, so there is no debug info to extract
+                // and Play still warns about missing symbols (upload the zip built by
+                // tools/native_debug_symbols.ps1 instead). Kept because it starts
+                // working for free the moment this app gains real NDK/C++ sources.
+                debugSymbolLevel = 'FULL'
+            }
         }
     }
 }
