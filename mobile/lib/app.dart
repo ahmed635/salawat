@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
+import 'core/background_taps.dart';
 import 'core/daily_reset.dart';
 import 'core/guide_controller.dart';
 import 'core/theme_controller.dart';
@@ -67,6 +68,7 @@ class _AuthGate extends ConsumerStatefulWidget {
 class _AuthGateState extends ConsumerState<_AuthGate>
     with WidgetsBindingObserver {
   bool _profileResynced = false;
+  bool _backgroundTapsReconciled = false;
 
   /// Minimum time the animated [SplashScreen] stays up, so its entrance
   /// animation always plays even when sign-in resolves instantly.
@@ -106,6 +108,24 @@ class _AuthGateState extends ConsumerState<_AuthGate>
         state == AppLifecycleState.inactive) {
       // Best-effort flush before the user backgrounds / locks the device.
       ref.read(counterSyncProvider).flushNow();
+      // Hand the current total to the notification/widget on the way out.
+      // Pushing per-tap instead would mean a platform-channel round trip on
+      // every tap during rapid tapping, to update surfaces the user can't
+      // see while they're looking at the app.
+      ref.read(backgroundTapsProvider).pushDisplay();
+      // Float the bubble only once we're actually out of the way — on top of
+      // our own UI it would just cover the real counter.
+      ref.read(backgroundTapsProvider).showOverlay();
+    } else if (state == AppLifecycleState.resumed) {
+      ref.read(backgroundTapsProvider).hideOverlay();
+      // Fold in anything tapped from the bubble, notification or widget while
+      // we were away.
+      ref.read(backgroundTapsProvider).reconcile();
+      // Both surfaces can be switched off from outside the app — the
+      // notification's "إيقاف" button, swiping it away, or long-pressing the
+      // bubble. Re-read the native flags so the profile toggles don't sit
+      // there claiming something is on after the user turned it off.
+      ref.read(quickTapProvider.notifier).refresh();
     }
   }
 
@@ -133,6 +153,17 @@ class _AuthGateState extends ConsumerState<_AuthGate>
           // The server resets the shared global counter at Asia/Riyadh
           // midnight on its own schedule.
           ref.read(dailyResetProvider).start();
+
+          // Cold start doesn't emit a `resumed` lifecycle event, so the
+          // buffered quick-taps need draining here too. Ordered after the
+          // daily reset above so a day-rollover zeroes the counter *before*
+          // buffered taps fold in, rather than being wiped by it.
+          if (!_backgroundTapsReconciled) {
+            _backgroundTapsReconciled = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ref.read(backgroundTapsProvider).reconcile();
+            });
+          }
           final userName = ref.watch(userNameControllerProvider);
           final guideSeen = ref.watch(guideControllerProvider);
 

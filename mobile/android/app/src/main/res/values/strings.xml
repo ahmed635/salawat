@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">عدّاد الصلاة على النبي ﷺ</string>
+    <string name="widget_today_label">صلاة اليوم</string>
+    <string name="widget_tap_label">صلِّ عليه ﷺ</string>
+</resources>

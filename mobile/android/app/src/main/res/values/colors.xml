@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#065F46</color>
+    <!-- AppColors.teal600 / AppColors.emerald900 from lib/theme/colors.dart. -->
+    <color name="widget_gradient_start">#0D9488</color>
+    <color name="widget_gradient_end">#064E3B</color>
 </resources>

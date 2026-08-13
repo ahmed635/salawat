@@ -14,6 +14,15 @@ class LifetimeCounterController extends Notifier<int> {
     state = next;
     await ref.read(prefsProvider).setLifetimeCount(next);
   }
+
+  /// Adds [n] at once — used when reconciling taps buffered by the
+  /// notification/widget, which arrive as a batch rather than one at a time.
+  Future<void> addMany(int n) async {
+    if (n <= 0) return;
+    final next = state + n;
+    state = next;
+    await ref.read(prefsProvider).setLifetimeCount(next);
+  }
 }
 
 final lifetimeCounterProvider =
