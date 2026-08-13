@@ -18,10 +18,21 @@ class AuthRepository {
     var user = _auth.currentUser;
     // Wait for the hydrated state, but don't hang forever if the SDK never
     // emits (rare init failure) — fall through to a fresh anonymous sign-in.
+    //
+    // 2.5s, not 8s: hydration is a local disk read that lands in tens of
+    // milliseconds, so a long timeout only ever showed up as splash-screen
+    // dead time on the unhappy path. It is never network-bound, so a
+    // no-connection device doesn't need the extra headroom either.
     user ??= await _auth
         .authStateChanges()
         .first
-        .timeout(const Duration(seconds: 8), onTimeout: () => null);
+        .timeout(const Duration(seconds: 2, milliseconds: 500),
+            onTimeout: () => null);
+    // Re-check before giving up: the stream may have stayed silent while the
+    // SDK still finished hydrating. Skipping this would burn a fresh UID and
+    // orphan the previous users/{uid} doc — the exact failure the wait above
+    // exists to prevent, so the shorter timeout must not reintroduce it.
+    user ??= _auth.currentUser;
     if (user != null) return user;
     final credential = await _auth.signInAnonymously();
     return credential.user!;

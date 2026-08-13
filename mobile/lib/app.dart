@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -19,6 +20,7 @@ import 'features/onboarding/onboarding_screen.dart';
 import 'features/splash/splash_screen.dart';
 import 'shared/nav_shell.dart';
 import 'theme/app_theme.dart';
+import 'theme/colors.dart';
 import 'theme/gold_mode.dart';
 
 class SalawatApp extends ConsumerWidget {
@@ -68,7 +70,11 @@ class _AuthGateState extends ConsumerState<_AuthGate>
 
   /// Minimum time the animated [SplashScreen] stays up, so its entrance
   /// animation always plays even when sign-in resolves instantly.
-  static const _minSplash = Duration(milliseconds: 2500);
+  ///
+  /// Sized to the splash's 900ms entrance plus a beat to read the logo. The
+  /// other two controllers there are `repeat()` loops with no end to wait
+  /// for, so holding for their duration was pure dead time on every launch.
+  static const _minSplash = Duration(milliseconds: 1100);
   bool _minSplashElapsed = false;
   Timer? _minSplashTimer;
 
@@ -115,7 +121,11 @@ class _AuthGateState extends ConsumerState<_AuthGate>
     } else {
       screen = auth.when(
         loading: () => const SplashScreen(key: ValueKey('splash')),
-        error: (e, _) => _AuthErrorScreen(key: const ValueKey('error'), error: e),
+        error: (e, _) => _AuthErrorScreen(
+          key: const ValueKey('error'),
+          error: e,
+          onRetry: () => ref.invalidate(ensureSignedInProvider),
+        ),
         data: (_) {
           // Now safe to start the periodic flush.
           ref.read(counterSyncProvider).start();
@@ -159,19 +169,120 @@ class _AuthGateState extends ConsumerState<_AuthGate>
   }
 }
 
-class _AuthErrorScreen extends StatelessWidget {
-  const _AuthErrorScreen({super.key, required this.error});
+/// Shown when the very first anonymous sign-in fails — in practice, a fresh
+/// install with no connection, since a returning user is served from the
+/// persisted session. Retries by itself the moment the network comes back,
+/// so regaining signal doesn't require a tap (let alone a force-quit).
+class _AuthErrorScreen extends StatefulWidget {
+  const _AuthErrorScreen({
+    super.key,
+    required this.error,
+    required this.onRetry,
+  });
+
   final Object error;
+  final VoidCallback onRetry;
+
+  @override
+  State<_AuthErrorScreen> createState() => _AuthErrorScreenState();
+}
+
+class _AuthErrorScreenState extends State<_AuthErrorScreen> {
+  StreamSubscription<List<ConnectivityResult>>? _sub;
+  Timer? _debounce;
+  bool _retrying = false;
+
+  /// The radio reports a usable link before it can actually carry a request
+  /// (same lag `GlobalCountRepository` backs off around), and the interfaces
+  /// settling can emit several events in a row. Debouncing by this much
+  /// collapses the burst and spends the retry on a link that's ready.
+  static const _settleDelay = Duration(milliseconds: 1500);
+
+  @override
+  void initState() {
+    super.initState();
+    // Only transitions matter. A retry is not scheduled for whatever state
+    // the device is already in, so a connection that's up but not working
+    // (captive portal, no data balance) can't spin us in a retry loop — the
+    // button is the way out of that one.
+    _sub = Connectivity().onConnectivityChanged.listen(_onConnectivityChanged);
+  }
+
+  void _onConnectivityChanged(List<ConnectivityResult> results) {
+    final none = results.isEmpty ||
+        results.every((r) => r == ConnectivityResult.none);
+    if (none || _retrying) return;
+    _debounce?.cancel();
+    _debounce = Timer(_settleDelay, () {
+      if (!mounted) return;
+      setState(() => _retrying = true);
+      widget.onRetry();
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  void _retryNow() {
+    _debounce?.cancel();
+    setState(() => _retrying = true);
+    widget.onRetry();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(
-            'تعذر الاتصال بالخادم.\n\n$error',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.wifi_off,
+                size: 44,
+                color: AppColors.slate400,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'تعذر الاتصال بالخادم',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'تحقق من اتصالك بالإنترنت ثم أعد المحاولة.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: AppColors.slate400),
+              ),
+              const SizedBox(height: 20),
+              if (_retrying)
+                const SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                )
+              else
+                FilledButton(
+                  onPressed: _retryNow,
+                  child: const Text('إعادة المحاولة'),
+                ),
+              const SizedBox(height: 24),
+              // Kept for field diagnostics, de-emphasised so it doesn't read
+              // as the main message.
+              Text(
+                '${widget.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.slate400,
+                ),
+              ),
+            ],
           ),
         ),
       ),

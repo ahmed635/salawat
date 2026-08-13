@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart';
 
-import '../core/arabic_numbers.dart';
+import '../core/app_share.dart';
 import '../core/lifetime_counter_controller.dart';
 import '../core/theme_controller.dart';
 import '../core/user_controller.dart';
@@ -166,15 +165,8 @@ class _Header extends ConsumerWidget {
   }
 
   Future<void> _share(BuildContext context, WidgetRef ref) async {
-    final count = ref.watch(lifetimeCounterProvider);
-    final text =
-        'أنا وصلت لـ ${formatArabic(count)} صلاة على النبي ﷺ! '
-        'شاركني الأجر وتحداني في لوحة الشرف 🌟';
-    final box = context.findRenderObject() as RenderBox?;
-    await Share.share(
-      text,
-      sharePositionOrigin:
-          box != null ? box.localToGlobal(Offset.zero) & box.size : null,
-    );
+    // read, not watch — this runs from a callback, not a build.
+    final count = ref.read(lifetimeCounterProvider);
+    await shareApp(context, appInviteTextWithCount(count));
   }
 }

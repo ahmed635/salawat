@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart' hide Badge;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/app_share.dart';
 import '../../core/committed_days_controller.dart';
 import '../../core/lifetime_counter_controller.dart';
 import '../../core/user_controller.dart';
@@ -67,6 +68,8 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
             _GuideButton(isDark: isDark),
+            const SizedBox(height: 12),
+            _ShareAppButton(isDark: isDark),
           ],
         ),
       ),
@@ -82,16 +85,59 @@ class _GuideButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return _ActionTile(
+      isDark: isDark,
+      icon: Icons.help_outline,
+      label: 'كيف تستخدم التطبيق',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const GuideScreen(replay: true),
+        ),
+      ),
+    );
+  }
+}
+
+/// Opens the system share sheet with the store link. Unlike the header's
+/// share button this one doesn't mention the user's count — it's an invite
+/// to the app, not a brag about a score.
+class _ShareAppButton extends StatelessWidget {
+  const _ShareAppButton({required this.isDark});
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ActionTile(
+      isDark: isDark,
+      icon: Icons.share_outlined,
+      label: 'شارك التطبيق',
+      onTap: () => shareApp(context, appInviteText()),
+    );
+  }
+}
+
+/// The full-width row used by the actions under the badge grid.
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.isDark,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final bool isDark;
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
     return Material(
       color: isDark ? AppColors.slate800 : Colors.white,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const GuideScreen(replay: true),
-          ),
-        ),
+        onTap: onTap,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -103,14 +149,14 @@ class _GuideButton extends StatelessWidget {
           child: Row(
             children: [
               Icon(
-                Icons.help_outline,
+                icon,
                 size: 22,
                 color: isDark ? AppColors.emerald400 : AppColors.emerald600,
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'كيف تستخدم التطبيق',
+                  label,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
@@ -118,10 +164,10 @@ class _GuideButton extends StatelessWidget {
                   ),
                 ),
               ),
-              Icon(
+              const Icon(
                 Icons.chevron_left,
                 size: 22,
-                color: isDark ? AppColors.slate400 : AppColors.slate400,
+                color: AppColors.slate400,
               ),
             ],
           ),
