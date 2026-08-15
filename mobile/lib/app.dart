@@ -11,6 +11,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'core/background_taps.dart';
 import 'core/daily_reset.dart';
 import 'core/guide_controller.dart';
+import 'core/quick_tap_setup.dart';
 import 'core/theme_controller.dart';
 import 'core/user_controller.dart';
 import 'data/auth_repository.dart';
@@ -69,6 +70,7 @@ class _AuthGateState extends ConsumerState<_AuthGate>
     with WidgetsBindingObserver {
   bool _profileResynced = false;
   bool _backgroundTapsReconciled = false;
+  bool _quickTapSetupStarted = false;
 
   /// Minimum time the animated [SplashScreen] stays up, so its entrance
   /// animation always plays even when sign-in resolves instantly.
@@ -121,11 +123,12 @@ class _AuthGateState extends ConsumerState<_AuthGate>
       // Fold in anything tapped from the bubble, notification or widget while
       // we were away.
       ref.read(backgroundTapsProvider).reconcile();
-      // Both surfaces can be switched off from outside the app — the
-      // notification's "إيقاف" button, swiping it away, or long-pressing the
-      // bubble. Re-read the native flags so the profile toggles don't sit
-      // there claiming something is on after the user turned it off.
+      // Re-read the native flag so the profile toggle can't sit there
+      // claiming a state the user changed from outside the app.
       ref.read(quickTapProvider.notifier).refresh();
+      // The overlay permission is granted on a system settings screen, so a
+      // resume is the only moment its answer can have changed.
+      ref.invalidate(overlayPermissionProvider);
     }
   }
 
@@ -188,6 +191,18 @@ class _AuthGateState extends ConsumerState<_AuthGate>
             return const OnboardingScreen(key: ValueKey('onboarding'));
           }
           if (!guideSeen) return const GuideScreen(key: ValueKey('guide'));
+
+          // Offer the floating counter once the user is actually in the app —
+          // after the name screen and the guide, so the only permission this
+          // app ever sends someone to a settings screen for lands on someone
+          // who already knows what it's for. Self-gating and one-shot; see
+          // QuickTapSetup.
+          if (!_quickTapSetupStarted) {
+            _quickTapSetupStarted = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) QuickTapSetup.runIfNeeded(context, ref);
+            });
+          }
           return const NavShell(key: ValueKey('shell'));
         },
       );

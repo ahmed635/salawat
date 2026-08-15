@@ -20,7 +20,31 @@
       "Bash(git add *)",
       "Bash(git push *)",
       "PowerShell(flutter analyze *)",
-      "Bash(grep -v \"data:\\\\|comment\\\\|onTap\\\\|//\")"
+      "Bash(grep -v \"data:\\\\|comment\\\\|onTap\\\\|//\")",
+      "Bash(java -version)",
+      "Bash(flutter build *)",
+      "Bash(\"/c/Program Files/Java/jdk-17/bin/keytool\" -list -v -keystore android/app/upload-keystore.jks -alias upload -storepass \"bYLOPYL8d2dSA3H8cCB8KlUK\")",
+      "Bash(\"/c/Program Files/Java/jdk-17/bin/keytool\" -list -v -keystore /c/salawat-app/mobile/android/app/upload-keystore.jks -alias upload -storepass \"bYLOPYL8d2dSA3H8cCB8KlUK\")",
+      "Bash(flutter --version)",
+      "Bash(/c/Users/Mostafa/AppData/Local/Android/sdk/build-tools/35.0.0/zipalign.exe -c -P 16 -v 4 /c/salawat-app/mobile/build/app/outputs/flutter-apk/app-release.apk)",
+      "WebSearch",
+      "Bash(flutter clean *)",
+      "PowerShell(pwsh -NoProfile -File \"C:\\\\salawat-app\\\\mobile\\\\tools\\\\native_debug_symbols.ps1\")",
+      "PowerShell(pwsh -NoProfile -File \"C:\\\\salawat-app\\\\mobile\\\\tools\\\\native_debug_symbols.ps1\" -Light)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)",
+      "Bash(adb devices *)",
+      "Bash(adb install *)",
+      "Bash(adb shell *)",
+      "Bash(adb logcat *)",
+      "Bash(adb pull *)",
+      "Bash(adb exec-out *)",
+      "Bash(grep -iA4 \"salawat\")",
+      "Bash(python -)",
+      "Bash(git fetch *)",
+      "Bash(echo \"exit: $?\")",
+      "PowerShell(flutter build *)",
+      "PowerShell(flutter test *)"
     ]
   }
 }

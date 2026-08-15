@@ -37,6 +37,13 @@ object SalawatBuffer {
      *  live number without booting a Flutter engine to ask. */
     private const val KEY_DISPLAY = "display_count"
 
+    /** Bubble hidden until the app is next opened. See [dismissed]. */
+    private const val KEY_DISMISSED = "overlay_dismissed"
+
+    /** Where the user last parked the bubble. See [position]. */
+    private const val KEY_POS_X = "overlay_pos_x"
+    private const val KEY_POS_Y = "overlay_pos_y"
+
     private val lock = Any()
 
     private fun prefs(context: Context) =
@@ -109,26 +116,59 @@ object SalawatBuffer {
     }
 
     /**
-     * The single on/off switch for background tapping.
+     * The permanent on/off switch for the floating counter, owned by the
+     * profile toggle. Flipped on once by the first-run setup in
+     * `core/quick_tap_setup.dart` and otherwise left alone — dismissing the
+     * bubble does *not* clear it (see [dismissed]).
      *
-     * Deliberately one flag, not one per surface. The bubble and the
-     * notification are two faces of one feature — and the notification isn't
-     * optional anyway, since Android requires one to keep the overlay's
-     * foreground service alive. Splitting them meant turning "the feature"
-     * off could leave the other surface running, which read as a bug: the
-     * bubble outliving the switch the user had just flipped.
-     *
-     * Which surfaces appear is derived from the overlay permission, not from
-     * a second preference:
-     *   enabled + permission  -> floating bubble (+ its required notification)
-     *   enabled, no permission -> notification only, still fully usable
-     *   disabled               -> nothing
+     * The ongoing notification is not a separate surface with its own flag.
+     * Android requires one to keep the overlay's foreground service alive, so
+     * it exists exactly as long as the bubble does and carries no buttons of
+     * its own.
      */
     fun quickTapEnabled(context: Context): Boolean =
         prefs(context).getBoolean("quick_tap_enabled", false)
 
     fun setQuickTapEnabled(context: Context, value: Boolean) {
         prefs(context).edit().putBoolean("quick_tap_enabled", value).apply()
+    }
+
+    /**
+     * Set when the user flicks the bubble onto the X target (or long-presses
+     * it) — "not right now", not "never again".
+     *
+     * Kept separate from [quickTapEnabled] on purpose. Dismissing used to turn
+     * the whole feature off, which meant the only way back was hunting down a
+     * toggle in the profile screen, and re-granting a permission the user had
+     * already granted. Now the flag is cleared the next time the app is opened
+     * ([MainActivity.onResume]), so the bubble returns on its own the next time
+     * the user leaves the app, with nothing to re-ask.
+     */
+    fun dismissed(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_DISMISSED, false)
+
+    fun setDismissed(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_DISMISSED, value).apply()
+    }
+
+    /**
+     * Where the bubble was last dropped, or null if the user has never moved
+     * it.
+     *
+     * Persisted rather than held in memory because the service is stopped and
+     * restarted constantly by design — every time the app is opened and left
+     * again, and on boot and app update. Keeping the position in the service
+     * meant it reset to the top-left corner on every one of those, so moving
+     * the bubble out of the way never actually stuck.
+     */
+    fun position(context: Context): Pair<Int, Int>? {
+        val p = prefs(context)
+        if (!p.contains(KEY_POS_X)) return null
+        return p.getInt(KEY_POS_X, 0) to p.getInt(KEY_POS_Y, 0)
+    }
+
+    fun setPosition(context: Context, x: Int, y: Int) {
+        prefs(context).edit().putInt(KEY_POS_X, x).putInt(KEY_POS_Y, y).apply()
     }
 
     /** Arabic-Indic digits, matching `core/arabic_numbers.dart` in the app. */

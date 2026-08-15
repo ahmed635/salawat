@@ -31,20 +31,18 @@ class MainActivity : FlutterActivity() {
                     "setDisplay" -> {
                         val value = call.argument<Int>("value") ?: 0
                         SalawatBuffer.setDisplay(this, value)
-                        QuickTapNotification.refreshIfEnabled(this)
+                        QuickTapNotification.refresh(this, value)
                         SalawatWidgetProvider.renderAll(this)
                         result.success(null)
                     }
 
-                    // One switch for the whole feature. Which surfaces show up
-                    // is decided by the overlay permission, not by a second
-                    // preference — see SalawatBuffer.quickTapEnabled.
+                    // The permanent switch, owned by the profile toggle.
+                    // Turning it on doesn't show anything yet — the bubble
+                    // appears on the way out of the app.
                     "setQuickTapEnabled" -> {
                         val enabled = call.argument<Boolean>("enabled") ?: false
                         SalawatBuffer.setQuickTapEnabled(this, enabled)
-                        if (enabled) {
-                            QuickTapNotification.show(this, SalawatBuffer.display(this))
-                        } else {
+                        if (!enabled) {
                             OverlayService.stop(this)
                             QuickTapNotification.hide(this)
                         }
@@ -76,9 +74,10 @@ class MainActivity : FlutterActivity() {
 
                     // The bubble is shown only while the app is backgrounded —
                     // it would just cover the real counter otherwise. Dart
-                    // drives this from its lifecycle callbacks.
+                    // drives this from its lifecycle callbacks; `start` itself
+                    // decides whether anything should appear.
                     "showOverlay" -> {
-                        if (SalawatBuffer.quickTapEnabled(this)) OverlayService.start(this)
+                        OverlayService.start(this)
                         result.success(null)
                     }
 
@@ -90,5 +89,16 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /**
+     * Opening the app cancels a pending dismissal, so the bubble comes back on
+     * its own the next time the user leaves. Done here rather than in Dart
+     * because a cold start never emits a `resumed` lifecycle event, and this
+     * has to hold for both paths.
+     */
+    override fun onResume() {
+        super.onResume()
+        SalawatBuffer.setDismissed(this, false)
     }
 }

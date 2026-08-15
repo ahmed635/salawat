@@ -23,9 +23,11 @@ class CounterController extends Notifier<int> {
 
     final beforeLifetime = ref.read(lifetimeCounterProvider);
     await ref.read(lifetimeCounterProvider.notifier).increment();
-    // Detect the first tap of a new local day and bump the per-user
-    // "committed days" counter (offline-safe, Prefs-backed).
-    await ref.read(committedDaysProvider.notifier).recordActiveToday();
+    // Extend the day streak if this is the day's first tap (offline-safe,
+    // Prefs-backed).
+    await ref
+        .read(committedDaysProvider.notifier)
+        .recordActive(CommittedDaysController.todayLocal());
     final afterLifetime = ref.read(lifetimeCounterProvider);
     return badgeUnlockedAt(beforeLifetime, afterLifetime);
   }
@@ -45,6 +47,7 @@ class CounterController extends Notifier<int> {
   Future<Badge?> addBackgroundTaps({
     required int today,
     required int stale,
+    String? staleDay,
   }) async {
     if (today <= 0 && stale <= 0) return null;
 
@@ -56,9 +59,13 @@ class CounterController extends Notifier<int> {
 
     final beforeLifetime = ref.read(lifetimeCounterProvider);
     await ref.read(lifetimeCounterProvider.notifier).addMany(today + stale);
-    // Only a tap belonging to *today* makes today an active day.
-    if (today > 0) {
-      await ref.read(committedDaysProvider.notifier).recordActiveToday();
+    // Credit the day the taps actually happened on, not the day we happened to
+    // reconcile them. Someone who only ever uses the floating bubble may not
+    // open the app for days; without [staleDay] their streak would break over
+    // days they did in fact send salawat on.
+    final activeDay = today > 0 ? CommittedDaysController.todayLocal() : staleDay;
+    if (activeDay != null) {
+      await ref.read(committedDaysProvider.notifier).recordActive(activeDay);
     }
     final afterLifetime = ref.read(lifetimeCounterProvider);
     return badgeUnlockedAt(beforeLifetime, afterLifetime);

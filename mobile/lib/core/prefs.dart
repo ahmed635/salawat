@@ -17,6 +17,8 @@ class Prefs {
   static const _kCommittedDays = 'sallou_committed_days';
   static const _kLastActiveUtcDay = 'sallou_last_active_utc_day';
   static const _kGuideSeen = 'sallou_guide_seen';
+  static const _kQuickTapSetupDone = 'sallou_quick_tap_setup_done';
+  static const _kStreakReset = 'sallou_streak_reset_v1';
 
   final SharedPreferences _prefs;
 
@@ -29,6 +31,19 @@ class Prefs {
     // upgrade so existing users keep their unlocked badges.
     if (!p.containsKey(_kLifetimeCount) && p.containsKey(_kLocalCount)) {
       await p.setInt(_kLifetimeCount, p.getInt(_kLocalCount) ?? 0);
+    }
+    // Migration: [committedDays] used to be a lifetime tally of distinct
+    // active days and is now a consecutive-day streak. The old number is not a
+    // streak by any reading — someone who used the app on 40 scattered days
+    // would carry a 40-day run they never had — so everyone starts over.
+    //
+    // [_kLastActiveUtcDay] has to go with it. Zeroing the count while leaving
+    // today already stamped would make today's taps a no-op for the streak,
+    // stranding the user at 0 until tomorrow.
+    if (!p.containsKey(_kStreakReset)) {
+      await p.remove(_kCommittedDays);
+      await p.remove(_kLastActiveUtcDay);
+      await p.setBool(_kStreakReset, true);
     }
     return Prefs._(p);
   }
@@ -85,15 +100,18 @@ class Prefs {
   Future<void> setLastResetUtcDay(String value) =>
       _prefs.setString(_kLastResetUtcDay, value);
 
-  /// Number of distinct device-local days on which the user has sent at least
-  /// one salawat. Incremented client-side on the first tap of each new local
-  /// day, so it works fully offline.
+  /// Length of the user's day streak **as of [lastActiveUtcDay]** — not as of
+  /// today. Nothing decrements this while the app is closed, so a streak the
+  /// user has since broken still reads high here. Always resolve it against
+  /// the current date through `CommittedDaysController`, which is the only
+  /// thing that should read this key.
   int get committedDays => _prefs.getInt(_kCommittedDays) ?? 0;
   Future<void> setCommittedDays(int value) =>
       _prefs.setInt(_kCommittedDays, value);
 
-  /// Device-local date (yyyy-MM-dd) of the user's most recent tap. Used to
-  /// detect the "first tap of a new day" transition that bumps [committedDays].
+  /// Device-local date (yyyy-MM-dd) of the most recent day the user sent at
+  /// least one salawat. Paired with [committedDays] to tell an intact streak
+  /// from an abandoned one.
   String? get lastActiveUtcDay => _prefs.getString(_kLastActiveUtcDay);
   Future<void> setLastActiveUtcDay(String value) =>
       _prefs.setString(_kLastActiveUtcDay, value);
@@ -103,6 +121,15 @@ class Prefs {
   /// the profile screen afterwards.
   bool get guideSeen => _prefs.getBool(_kGuideSeen) ?? false;
   Future<void> setGuideSeen(bool value) => _prefs.setBool(_kGuideSeen, value);
+
+  /// Whether the floating counter has been offered once. Set the moment the
+  /// offer is *made*, not when it's accepted — the whole point is that the
+  /// permission is asked for exactly once in the app's life, so declining has
+  /// to close the question just as firmly as accepting does. The profile
+  /// toggle is the only way back in. See `core/quick_tap_setup.dart`.
+  bool get quickTapSetupDone => _prefs.getBool(_kQuickTapSetupDone) ?? false;
+  Future<void> setQuickTapSetupDone(bool value) =>
+      _prefs.setBool(_kQuickTapSetupDone, value);
 }
 
 /// Overridden in main() with the loaded Prefs instance.

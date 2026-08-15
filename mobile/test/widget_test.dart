@@ -1,4 +1,5 @@
 import 'package:app/core/arabic_numbers.dart';
+import 'package:app/core/committed_days_controller.dart';
 import 'package:app/core/prefs.dart';
 import 'package:app/core/user_tag.dart';
 import 'package:app/data/today_riyadh.dart';
@@ -89,6 +90,150 @@ void main() {
       });
       final prefs = await Prefs.load();
       expect(prefs.lifetimeCount, 9000);
+    });
+  });
+
+  group('Committed days streak', () {
+    /// Local calendar day [offset] days from today, formatted the way the
+    /// controller stores it.
+    String day(int offset) {
+      final now = DateTime.now();
+      final d = DateTime(now.year, now.month, now.day + offset);
+      final mm = d.month.toString().padLeft(2, '0');
+      final dd = d.day.toString().padLeft(2, '0');
+      return '${d.year}-$mm-$dd';
+    }
+
+    Future<ProviderContainer> containerWith({
+      int? streak,
+      String? lastActive,
+    }) async {
+      SharedPreferences.setMockInitialValues({
+        // Already migrated — otherwise Prefs.load() wipes the seeded run.
+        'sallou_streak_reset_v1': true,
+        if (streak != null) 'sallou_committed_days': streak,
+        if (lastActive != null) 'sallou_last_active_utc_day': lastActive,
+      });
+      final prefs = await Prefs.load();
+      return ProviderContainer(
+        overrides: [prefsProvider.overrideWithValue(prefs)],
+      );
+    }
+
+    test('is zero on a fresh install', () async {
+      final c = await containerWith();
+      expect(c.read(committedDaysProvider), 0);
+    });
+
+    test('shows the stored run when the user was active today', () async {
+      final c = await containerWith(streak: 5, lastActive: day(0));
+      expect(c.read(committedDaysProvider), 5);
+    });
+
+    test('survives a day with no tap yet — yesterday keeps the run alive',
+        () async {
+      final c = await containerWith(streak: 5, lastActive: day(-1));
+      expect(c.read(committedDaysProvider), 5);
+    });
+
+    test('resets to zero once a full day is missed', () async {
+      final c = await containerWith(streak: 5, lastActive: day(-2));
+      expect(c.read(committedDaysProvider), 0);
+      // ...and stays zero however long the user stays away.
+      final c2 = await containerWith(streak: 5, lastActive: day(-30));
+      expect(c2.read(committedDaysProvider), 0);
+    });
+
+    test('extends the run on the first tap of a new day', () async {
+      final c = await containerWith(streak: 5, lastActive: day(-1));
+      await c.read(committedDaysProvider.notifier).recordActive(day(0));
+      expect(c.read(committedDaysProvider), 6);
+    });
+
+    test('starts a new run at 1 after a break', () async {
+      final c = await containerWith(streak: 12, lastActive: day(-4));
+      await c.read(committedDaysProvider.notifier).recordActive(day(0));
+      expect(c.read(committedDaysProvider), 1);
+    });
+
+    test('counts a day once however many times it is tapped', () async {
+      final c = await containerWith(streak: 3, lastActive: day(-1));
+      final notifier = c.read(committedDaysProvider.notifier);
+      await notifier.recordActive(day(0));
+      await notifier.recordActive(day(0));
+      await notifier.recordActive(day(0));
+      expect(c.read(committedDaysProvider), 4);
+    });
+
+    test('credits background taps to the day they were sent on', () async {
+      // Bubble-only user: tapped yesterday without opening the app, opens it
+      // today. Yesterday earned its day, so today's tap can extend the run.
+      final c = await containerWith(streak: 2, lastActive: day(-3));
+      final notifier = c.read(committedDaysProvider.notifier);
+      await notifier.recordActive(day(-1));
+      expect(c.read(committedDaysProvider), 1);
+      await notifier.recordActive(day(0));
+      expect(c.read(committedDaysProvider), 2);
+    });
+
+    test('a late batch older than the last active day cannot rewrite the run',
+        () async {
+      final c = await containerWith(streak: 4, lastActive: day(0));
+      await c.read(committedDaysProvider.notifier).recordActive(day(-2));
+      expect(c.read(committedDaysProvider), 4);
+    });
+
+    group('migration off the old lifetime tally', () {
+      test('drops the old count to zero', () async {
+        SharedPreferences.setMockInitialValues({
+          'sallou_committed_days': 40,
+          'sallou_last_active_utc_day': day(0),
+        });
+        final prefs = await Prefs.load();
+        expect(prefs.committedDays, 0);
+        // The stamp goes too, so today can still start a run.
+        expect(prefs.lastActiveUtcDay, isNull);
+      });
+
+      test("today's tap starts the new run at 1", () async {
+        SharedPreferences.setMockInitialValues({
+          'sallou_committed_days': 40,
+          'sallou_last_active_utc_day': day(0),
+        });
+        final prefs = await Prefs.load();
+        final c = ProviderContainer(
+          overrides: [prefsProvider.overrideWithValue(prefs)],
+        );
+        expect(c.read(committedDaysProvider), 0);
+        await c.read(committedDaysProvider.notifier).recordActive(day(0));
+        expect(c.read(committedDaysProvider), 1);
+      });
+
+      test('runs once — a migrated run is never wiped again', () async {
+        SharedPreferences.setMockInitialValues({'sallou_committed_days': 40});
+        await Prefs.load();
+        final prefs = await Prefs.load();
+        await prefs.setCommittedDays(3);
+        await prefs.setLastActiveUtcDay(day(0));
+        expect((await Prefs.load()).committedDays, 3);
+      });
+    });
+  });
+
+  group('Quick-tap setup one-shot', () {
+    test('defaults to not-yet-offered on a fresh install', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await Prefs.load();
+      expect(prefs.quickTapSetupDone, isFalse);
+    });
+
+    test('stays done once offered, so the permission is never re-asked',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await Prefs.load();
+      await prefs.setQuickTapSetupDone(true);
+      expect(prefs.quickTapSetupDone, isTrue);
+      expect((await Prefs.load()).quickTapSetupDone, isTrue);
     });
   });
 

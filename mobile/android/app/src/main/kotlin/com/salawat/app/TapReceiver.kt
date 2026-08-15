@@ -9,8 +9,8 @@ import android.os.Vibrator
 import android.os.VibratorManager
 
 /**
- * Handles a tap from the ongoing notification's action button or the
- * home-screen widget.
+ * Handles a tap from the home-screen widget, and brings the floating bubble
+ * back after a reboot or an app update.
  *
  * Runs entirely in Kotlin — no Flutter engine is spawned. That's the point:
  * booting an engine per tap would cost hundreds of milliseconds, burn memory
@@ -24,37 +24,17 @@ class TapReceiver : BroadcastReceiver() {
         const val EXTRA_SOURCE = "source"
 
         /**
-         * Turns every background surface off for good.
-         *
-         * Reachable without opening the app — from the notification's "إيقاف"
-         * button, from swiping the notification away, and from a long-press on
-         * the bubble. That matters because the service is START_STICKY and
-         * survives the app being swiped out of recents: without an off switch
-         * that lives *outside* the app, a user who wanted the bubble gone had
-         * no way to remove it.
-         */
-        const val ACTION_STOP = "com.salawat.app.ACTION_STOP"
-
-        fun stopAll(context: Context) {
-            SalawatBuffer.setQuickTapEnabled(context, false)
-            OverlayService.stop(context)
-            QuickTapNotification.hide(context)
-        }
-
-        /**
          * The one place a background tap is recorded, shared by the
-         * notification action, the widget, and the floating bubble. Returns
-         * the new display count so a caller with its own UI can render it
-         * without a second read.
+         * home-screen widget and the floating bubble. Returns the new display
+         * count so a caller with its own UI can render it without a second
+         * read.
          */
         fun applyTap(context: Context): Int {
             val display = SalawatBuffer.append(context, 1)
             // Same 20ms light tap the in-app counter uses (core/haptics.dart),
             // so every surface feels identical.
             vibrate(context)
-            if (SalawatBuffer.quickTapEnabled(context)) {
-                QuickTapNotification.show(context, display)
-            }
+            QuickTapNotification.refresh(context, display)
             SalawatWidgetProvider.renderAll(context)
             OverlayService.render(display)
             return display
@@ -89,16 +69,14 @@ class TapReceiver : BroadcastReceiver() {
         when (intent.action) {
             ACTION_TAP -> applyTap(context)
 
-            ACTION_STOP -> stopAll(context)
-
             Intent.ACTION_BOOT_COMPLETED,
             Intent.ACTION_MY_PACKAGE_REPLACED -> {
-                // Notifications don't survive a reboot or an app update, so the
-                // quick-tap row would silently vanish and never come back until
-                // the user next opened the app.
-                QuickTapNotification.refreshIfEnabled(context)
+                // The service doesn't survive a reboot or an app update, so the
+                // bubble would silently vanish and never come back until the
+                // user next opened the app. `start` re-checks the user's
+                // preference, the permission, and any pending dismissal.
                 SalawatWidgetProvider.renderAll(context)
-                OverlayService.restoreIfEnabled(context)
+                OverlayService.start(context)
             }
         }
     }

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Drop target for dismissing the floating bubble. Only on screen while a
+     drag is in progress. The scrim behind it does the real work: it separates
+     "I'm moving this" from "I'm getting rid of this" at a glance, without any
+     text to read one-handed. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="220dp"
+    android:background="@drawable/overlay_dismiss_scrim">
+
+    <TextView
+        android:id="@+id/overlay_dismiss_circle"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="56dp"
+        android:background="@drawable/overlay_dismiss_background"
+        android:gravity="center"
+        android:text="✕"
+        android:textColor="@android:color/white"
+        android:textSize="26sp"
+        android:elevation="8dp" />
+
+</FrameLayout>

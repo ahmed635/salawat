@@ -120,11 +120,12 @@ class _ShareAppButton extends StatelessWidget {
   }
 }
 
-/// The one switch for tapping without opening the app.
+/// The permanent switch for the floating counter — the only one, since
+/// dismissing the bubble is temporary by design.
 ///
-/// Turning it on offers the "Display over other apps" permission, which buys
-/// the floating bubble. Declining isn't a dead end — the feature still works
-/// from the notification, so the permission is an upgrade rather than a gate.
+/// Also the second chance for anyone who declined the one-time offer in
+/// `core/quick_tap_setup.dart`, which is why the missing-permission path here
+/// still has to be able to reach the system settings screen.
 class _QuickTapToggle extends ConsumerWidget {
   const _QuickTapToggle({required this.isDark});
   final bool isDark;
@@ -135,23 +136,24 @@ class _QuickTapToggle extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final on = ref.watch(quickTapProvider).valueOrNull ?? false;
+    final granted = ref.watch(overlayPermissionProvider).valueOrNull ?? true;
+    // On, but with nothing to show for it. Says so rather than leaving a
+    // switch that looks satisfied while the bubble never appears.
+    final needsPermission = on && !granted;
 
-    Future<void> handleToggle() async {
-      final wantsOverlay = await ref.read(quickTapProvider.notifier).toggle();
-      if (!wantsOverlay || !context.mounted) return;
+    Future<void> openSettings() async {
       final go = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('العدّاد العائم'),
           content: const Text(
-            'لعرض العدّاد كرقم عائم فوق التطبيقات الأخرى، يحتاج التطبيق إلى إذن '
-            '"الظهور فوق التطبيقات الأخرى" من إعدادات النظام.\n\n'
-            'بدون هذا الإذن سيعمل التسبيح السريع من الإشعار فقط.',
+            'لعرض العدّاد فوق التطبيقات الأخرى، يحتاج التطبيق إلى إذن '
+            '"الظهور فوق التطبيقات الأخرى" من إعدادات النظام.',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('الإشعار يكفي'),
+              child: const Text('لاحقًا'),
             ),
             FilledButton(
               onPressed: () => Navigator.of(ctx).pop(true),
@@ -165,12 +167,18 @@ class _QuickTapToggle extends ConsumerWidget {
       }
     }
 
+    Future<void> handleToggle() async {
+      final wantsOverlay = await ref.read(quickTapProvider.notifier).toggle();
+      if (!wantsOverlay || !context.mounted) return;
+      await openSettings();
+    }
+
     return Material(
       color: isDark ? AppColors.slate800 : Colors.white,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: handleToggle,
+        onTap: needsPermission ? openSettings : handleToggle,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -182,9 +190,13 @@ class _QuickTapToggle extends ConsumerWidget {
           child: Row(
             children: [
               Icon(
-                Icons.bubble_chart_outlined,
+                needsPermission
+                    ? Icons.error_outline
+                    : Icons.bubble_chart_outlined,
                 size: 22,
-                color: isDark ? AppColors.emerald400 : AppColors.emerald600,
+                color: needsPermission
+                    ? AppColors.amber500
+                    : (isDark ? AppColors.emerald400 : AppColors.emerald600),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -192,7 +204,7 @@ class _QuickTapToggle extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'التسبيح السريع',
+                      'العدّاد العائم',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
@@ -200,11 +212,15 @@ class _QuickTapToggle extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    const Text(
-                      'عدّاد عائم للصلاة دون فتح التطبيق',
+                    Text(
+                      needsPermission
+                          ? 'يحتاج إذن الظهور فوق التطبيقات — اضغط للمنح'
+                          : 'يظهر عند الخروج من التطبيق، واسحبه إلى ✕ لإخفائه',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.slate400,
+                        color: needsPermission
+                            ? AppColors.amber600
+                            : AppColors.slate400,
                       ),
                     ),
                   ],

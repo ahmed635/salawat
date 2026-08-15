@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'counter_controller.dart';
 import 'prefs.dart';
 
-/// Bridge to the native quick-tap surfaces: the ongoing notification and the
+/// Bridge to the native quick-tap surfaces: the floating bubble and the
 /// home-screen widget.
 ///
 /// The counter itself never lives on the native side. Those surfaces only
@@ -49,6 +49,9 @@ class BackgroundTaps {
         await _ref.read(counterControllerProvider.notifier).addBackgroundTaps(
               today: isToday ? today : 0,
               stale: isToday ? stale : stale + today,
+              // The day those taps were bucketed under, so the streak can be
+              // credited to the day they were actually sent on.
+              staleDay: isToday ? null : bufferedDay,
             );
       }
 
@@ -114,6 +117,10 @@ class BackgroundTaps {
 
   /// Shown on the way out of the app, hidden on the way back in — the bubble
   /// would only cover the real counter while the user is looking at it.
+  ///
+  /// The native side decides whether anything actually appears: it checks the
+  /// user's preference, the overlay permission, and whether the bubble was
+  /// dismissed since the app was last opened.
   Future<void> showOverlay() async {
     if (!_supported) return;
     try {
@@ -142,32 +149,37 @@ class BackgroundTaps {
 
 final backgroundTapsProvider = Provider<BackgroundTaps>(BackgroundTaps.new);
 
-/// The single switch for background tapping.
+/// The permanent switch for the floating counter.
 ///
-/// One flag, one toggle. The bubble and the notification are two faces of the
-/// same feature — and the notification is mandatory whenever the bubble runs,
-/// since Android requires one for the overlay's foreground service. Two
-/// separate switches meant turning "it" off could leave the other surface
-/// alive, which reads as the feature refusing to die.
+/// Distinct from dismissing the bubble, which is temporary and lives entirely
+/// on the native side (`SalawatBuffer.dismissed`). This flag is only moved by
+/// the first-run setup and the profile toggle; flicking the bubble onto the X
+/// leaves it on, which is what lets the bubble come back by itself.
+///
+/// One flag covers the ongoing notification too, because that notification
+/// isn't a surface the user chose — Android requires one to keep the overlay's
+/// foreground service alive, so it lives and dies with the bubble.
 class QuickTapController extends AsyncNotifier<bool> {
   @override
   Future<bool> build() =>
       ref.read(backgroundTapsProvider).isQuickTapEnabled();
 
-  /// Returns true if the caller should offer the overlay permission — the
-  /// feature is on either way, it just falls back to the notification alone
-  /// until the permission is granted.
-  Future<bool> toggle() async {
-    final taps = ref.read(backgroundTapsProvider);
-    final next = !(state.valueOrNull ?? false);
-    state = AsyncData(next);
-    await taps.setQuickTapEnabled(next);
-    return next && !await taps.canDrawOverlays();
+  Future<void> setEnabled(bool value) async {
+    state = AsyncData(value);
+    await ref.read(backgroundTapsProvider).setQuickTapEnabled(value);
+    // The permission gate below depends on the feature being on.
+    ref.invalidate(overlayPermissionProvider);
   }
 
-  /// Re-reads the native flag. The feature can be switched off from outside
-  /// the app — the notification's "إيقاف" button, swiping it away, or a
-  /// long-press on the bubble — so the toggle must not keep claiming it's on.
+  /// Returns true if the caller should send the user to the overlay settings
+  /// screen — without that permission there is nothing to show at all.
+  Future<bool> toggle() async {
+    final next = !(state.valueOrNull ?? false);
+    await setEnabled(next);
+    return next && !await ref.read(backgroundTapsProvider).canDrawOverlays();
+  }
+
+  /// Re-reads the native flag, in case something outside the app moved it.
   Future<void> refresh() async {
     state = AsyncData(await ref.read(backgroundTapsProvider).isQuickTapEnabled());
   }
@@ -175,3 +187,9 @@ class QuickTapController extends AsyncNotifier<bool> {
 
 final quickTapProvider =
     AsyncNotifierProvider<QuickTapController, bool>(QuickTapController.new);
+
+/// Whether "display over other apps" is granted. Invalidated on resume, since
+/// the only way to grant it is a trip to a system settings screen and back.
+final overlayPermissionProvider = FutureProvider<bool>(
+  (ref) => ref.read(backgroundTapsProvider).canDrawOverlays(),
+);

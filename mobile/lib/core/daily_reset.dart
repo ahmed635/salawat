@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/counter_sync.dart';
+import 'committed_days_controller.dart';
 import 'counter_controller.dart';
 import 'prefs.dart';
 
@@ -70,6 +71,10 @@ class DailyResetController {
     await _prefs.setLastSyncedCount(0);
     await _prefs.setPendingReqId(null);
     await _prefs.setLastResetUtcDay(today);
+    // The streak is derived from "how long ago was the last active day", so a
+    // day rolling over can end it. Nothing else would notice while the app
+    // sits open across midnight.
+    ref.read(committedDaysProvider.notifier).refresh();
   }
 
   void _scheduleNext() {

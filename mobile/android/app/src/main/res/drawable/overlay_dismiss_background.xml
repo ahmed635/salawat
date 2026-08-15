@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Neutral on purpose. The bubble's emerald is the app; this is the way out
+     of it, and colouring it red would read as destructive when the dismissal
+     only lasts until the app is next opened. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#E6334155" />
+    <stroke
+        android:width="2dp"
+        android:color="#66FFFFFF" />
+</shape>
