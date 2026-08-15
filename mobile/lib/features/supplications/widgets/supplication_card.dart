@@ -55,7 +55,7 @@ class SupplicationCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             supplication.arabic,
-            textAlign: TextAlign.end,
+            textAlign: TextAlign.start,
             style: TextStyle(
               fontSize: 18,
               height: 2.2,
